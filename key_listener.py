@@ -7,7 +7,7 @@ import syslog
 
 IP = 'localhost'
 
-qos = 0
+qos = 2
 gpioPin = 18
 gpioPinOut = 12
 
@@ -16,12 +16,14 @@ topic = 'key'
 client = None
 down = 1
 up =   0
+
 log_level = syslog.LOG_INFO
 
 syslog.syslog(log_level, 'key listener starting' )
 
-def key_press(channel):
 
+def key_press(channel):
+	# telegraph key pressed
 	if GPIO.input(gpioPin): 
 		client.publish(topic, down, qos)
 
@@ -46,6 +48,8 @@ def setup():
 	client = mqtt.Client(topic)
 	client.on_connect = on_connect
 	client.connect(IP)
+
+	# announce startup
 	client.publish('telegraph', 'CQ', qos)
 	syslog.syslog(log_level, 'key listener started' )
 	return client

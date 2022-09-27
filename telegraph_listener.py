@@ -8,9 +8,8 @@ from datetime import datetime
 import morse
 import syslog
 
-qos = 0
+qos = 2
 IP = 'localhost'
-wait_time = 1
 message_client_name = 'telegraph'
 msg_topic = 'telegraph'
 key_topic = 'key'

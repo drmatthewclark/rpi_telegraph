@@ -251,10 +251,6 @@ def sendCode(code):
 			space()
 	letterPause()
 
-# clean up
-def cleanup():
-  GPIO.output(gpioPin, GPIO.LOW)
-  GPIO.cleanup()
 
 # setup IO ports
 def setup():
@@ -266,15 +262,17 @@ def setup():
 def message(dline):
 
    # skip if sounder is down
-   if GPIO.input(gpioPin):
-      return
+   if GPIO.input(gpioPin) :
+     return 
 
-   dline = dline.upper().strip()
+   else:
 
-   for char in dline:
-     print (char," ",)
-     morseCode = morse(char)
-     sendCode(morseCode)
+     dline = dline.upper().strip()
+
+     for char in dline:
+       print (char," ",)
+       morseCode = morse(char)
+       sendCode(morseCode)
 
 
 #
