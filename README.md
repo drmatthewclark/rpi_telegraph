@@ -17,15 +17,15 @@ Wire the key to the +3v pin, and an IO pin    configure the gpio pin in key_list
 copy the service files to /lib/systemd/system to enable them as system services.
 execute these commands to set up auto-starting the system on boot up:
 
-+*sudo cp key_listener.service /lib/systemd/system/*
-+*sudo cp telegraph_listener.service /lib/systemd/system/*
-+*sudo systemctl enable telegraph_listener*
-+*sudo systemctl enable key_listener*
++ *sudo cp key_listener.service /lib/systemd/system/*
++ *sudo cp telegraph_listener.service /lib/systemd/system/*
++ *sudo systemctl enable telegraph_listener*
++ *sudo systemctl enable key_listener*
 
 
 and start them
 
-+*sudo systemctl start  telegraph_listener*
-+*sudo systemctl start key_listener*
++ *sudo systemctl start  telegraph_listener*
++ *sudo systemctl start key_listener*
 
     
