@@ -14,25 +14,38 @@ from time import sleep
 # 20 - 60 wpm  too fast for sounder
 
 gpioPin = 12
-wordsPerMinute = 21 
-dotLength = 60.0/(wordsPerMinute * 50) # based on PARIS
+lengths = {}
+wpm = 20
 
-dashLength = 3 * dotLength
-pauseLength = dotLength           # used for pauses in letters for old telegraph codes, 1+1 = 2
-letterPauseLength = dotLength * 3 # pause between letters is 3 dots, but since
+def setSpeed(wpm):
+
+	wordsPerMinute = wpm 
+	dotLength = 60.0/(wordsPerMinute * 50) # based on PARIS
+
+	dashLength = 3 * dotLength
+	pauseLength = dotLength           # used for pauses in letters for old telegraph codes, 1+1 = 2
+	letterPauseLength = dotLength * 3 # pause between letters is 3 dots, but since
 				  # each letter has a dot pause, this is added to make 3 dots pause.
 
-wordPauseLength = dotLength * 5   # pause between words, 5 + 1 letter pause for total of 6
-morseLLength = dashLength * 2     # special long dash for old Morse L
-morse0Length = dashLength * 3     # special long dash for old Morse 0
-randomAmount = 0.07  # 7% variation in length, gaussian randomness
+	wordPauseLength = dotLength * 5   # pause between words, 5 + 1 letter pause for total of 6
+	morseLLength = dashLength * 2     # special long dash for old Morse L
+	morse0Length = dashLength * 3     # special long dash for old Morse 0
+	randomAmount = 0.07  # 7% variation in length, gaussian randomness
 
-# words per minute is computed using the word PARIS, so this
+	lengths['dotLength'] = dotLength
+	lengths['dashLength'] = dashLength
+	lengths['pauseLength'] = pauseLength
+	lengths['letterPauseLength'] = letterPauseLength
+	lengths['wordPauseLength'] = wordPauseLength
+	lengths['morseLLength'] = morseLLength
+	lengths['morse0Length'] = morse0Length
+	lengths['randomAmount'] = randomAmount
+	return lengths
+
+lengths = setSpeed(wpm)
+
 # figure below is worked out using standard characters and spacings
 # PARIS has 50 elements
-#
-wordsPerMinute = 60.0/(dotLength * 50.0)
-print( 'telegraph rate is {0:.3f}'.format(wordsPerMinute), " words per minute")
 
 # standard messages
 endOfMessage = 'www.-.-.'  
@@ -41,7 +54,7 @@ endOfWork = '...-.-'
 
 # make it a little less mechanically uniform with a Gaussian
 # deviation of 5%
-randomDeviation = dotLength * randomAmount
+randomDeviation = lengths['dotLength'] * lengths['randomAmount']
 
 On = True
 Off = False
@@ -193,40 +206,40 @@ def pulse(duration):
 	GPIO.output(gpioPin, On)
 	sleep(duration + gauss(0, randomDeviation))
 	GPIO.output(gpioPin, Off)
-	sleep(dotLength + gauss(0, randomDeviation))
+	sleep(lengths['dotLength'] + gauss(0, randomDeviation))
 
 def dot():
 	print("dit ")
-	pulse(dotLength)
+	pulse(lengths['dotLength'])
 
 def dash():
 	print("dah ")
-	pulse(dashLength)
+	pulse(lengths['dashLength'])
 
 def morseL():    # special for old morse L
 	print("dahh ")
-	pulse(morseLLength)
+	pulse(lengths['morseLLength'])
 
 def morse0():   # special dash for old morse 0
 	print("dahhh ")
-	pulse(morse0Length)
+	pulse(lengths['morse0Length'])
 
 def midLetterPause():   # special mid-character pause for old morse
 	print("pause ",)
-	sleep(pauseLength)
+	sleep(lengths['pauseLength'])
 
 def letterPause():  # pause between letters
 	print("\t\t-letter")
-	sleep(letterPauseLength)
+	sleep(lengths['letterPauseLength'])
 
 def wordPause():  # pause between words
 	print("*-word space-*")
-	sleep(wordPauseLength)
+	sleep(lengths['wordPauseLength'])
 
 
 def space():
 	print("space")
-	sleep(wordPauseLength)
+	sleep(lengths['wordPauseLength'])
 	print("space")
 
 
