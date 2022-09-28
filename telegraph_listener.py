@@ -72,6 +72,9 @@ def on_message(message_client, userdata, msg):
 			if data[0] == 'speed':
 				morse.setSpeed(float(data[1]))
 				syslog.syslog(log_level, 'set speed to ' + data[1])
+			if data[0] == 'code':
+				result = morse.setActivecode(data[1])
+				syslog.syslog(log_level, 'set active code to ' + result)
 		except: 
 			syslog.syslog(syslog.LOG_ERR,'bad control message: ' + m ) 
 
