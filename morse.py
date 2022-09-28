@@ -4,6 +4,7 @@ import sys
 from random import gauss
 import RPi.GPIO as GPIO
 from time import sleep
+import syslog
 
 # global setup stuff
 
@@ -14,6 +15,7 @@ from time import sleep
 # 20 - 60 wpm  too fast for sounder
 
 gpioPin = 12
+pinOn = False
 lengths = {}
 wpm = 20
 
@@ -30,7 +32,7 @@ def setSpeed(wpm):
 	wordPauseLength = dotLength * 5   # pause between words, 5 + 1 letter pause for total of 6
 	morseLLength = dashLength * 2     # special long dash for old Morse L
 	morse0Length = dashLength * 3     # special long dash for old Morse 0
-	randomAmount = 0.07  # 7% variation in length, gaussian randomness
+	randomAmount = 0.05  # 5% variation in length, gaussian randomness
 
 	lengths['dotLength'] = dotLength
 	lengths['dashLength'] = dashLength
@@ -55,9 +57,6 @@ endOfWork = '...-.-'
 # make it a little less mechanically uniform with a Gaussian
 # deviation of 5%
 randomDeviation = lengths['dotLength'] * lengths['randomAmount']
-
-On = True
-Off = False
 
 #
 # table to define dots and dashes 
@@ -195,17 +194,19 @@ def morse(char):
 # wrapper for pulses
 
 def key(action):
-
+	global pinOn
 	if action == '1':
-		GPIO.output(gpioPin, On)
+		GPIO.output(gpioPin, GPIO.HIGH)
+		pinOn = True
 	elif action == '0':
-		GPIO.output(gpioPin, Off)
+		GPIO.output(gpioPin, GPIO.LOW)
+		pinOn = False
 
 
 def pulse(duration):
-	GPIO.output(gpioPin, On)
+	GPIO.output(gpioPin, GPIO.HIGH)
 	sleep(duration + gauss(0, randomDeviation))
-	GPIO.output(gpioPin, Off)
+	GPIO.output(gpioPin, GPIO.LOW)
 	sleep(lengths['dotLength'] + gauss(0, randomDeviation))
 
 def dot():
@@ -274,8 +275,11 @@ def setup():
 
 def message(dline):
 
+   global pinOn
    # skip if sounder is down
-   if GPIO.input(gpioPin) :
+   # GPIO.input doesn't work correctly here
+
+   if pinOn:
      return 
 
    else:
