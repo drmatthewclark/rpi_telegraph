@@ -13,6 +13,8 @@ IP = 'localhost'
 message_client_name = 'telegraph'
 msg_topic = 'telegraph'
 key_topic = 'key'
+control_topic = 'control'
+
 log_level = syslog.LOG_INFO
 
 # global message queue
@@ -64,6 +66,15 @@ def on_message(message_client, userdata, msg):
 	elif msg.topic == msg_topic:	
 		message_queue.put(m)
 
+	elif msg.topic == control_topic:
+		try:
+			data = m.split(':')
+			if data[0] == 'speed':
+				morse.setSpeed(float(data[1]))
+				syslog.syslog(log_level, 'set speed to ' + data[1])
+		except: 
+			syslog.syslog(syslog.LOG_ERR,'bad control message: ' + m ) 
+
 	check_threads()
 
 def setup_message_listener():
@@ -86,7 +97,7 @@ def setup():
 	message_client = mqtt.Client(message_client_name)
 	message_client.on_message = on_message 
 	message_client.connect(IP)
-	message_client.subscribe( [(msg_topic, qos), (key_topic, qos)] )
+	message_client.subscribe( [(msg_topic, qos), (key_topic, qos), (control_topic, qos)] )
 
 	syslog.syslog(log_level, 'telegraph listener started')
 	message_client.loop_forever()  # Start networking daemon
