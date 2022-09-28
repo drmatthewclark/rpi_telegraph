@@ -28,4 +28,10 @@ and start them
 + *sudo systemctl start  telegraph_listener*
 + *sudo systemctl start key_listener*
 
+
+one can set messages via a channel to change behavior. Send using 'control' as the topic
+
+* mosquitto_pub -t control -m "speed:20" * to set speed
+* mosquitto_pub -t control -m "code:morseIMC" * to set morse1920 (preferred) or morseIMC code
+
     
