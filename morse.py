@@ -5,6 +5,7 @@ from random import gauss
 import RPi.GPIO as GPIO
 from time import sleep
 import syslog
+from code import *
 
 # global setup stuff
 
@@ -17,6 +18,7 @@ import syslog
 gpioPin = 12
 pinOn = False
 lengths = {}
+activecode = morse1920
 wpm = 20
 
 def setSpeed(wpm):
@@ -46,6 +48,17 @@ def setSpeed(wpm):
 
 lengths = setSpeed(wpm)
 
+def setActivecode(codename):
+	global activecode
+
+	if 'IMC' in codename:
+		activecode = morseIMC
+		return('morseIMC')	
+	else:
+		activecode = morse1920
+		return('morse1920')
+
+
 # figure below is worked out using standard characters and spacings
 # PARIS has 50 elements
 
@@ -59,142 +72,15 @@ endOfWork = '...-.-'
 randomDeviation = lengths['dotLength'] * lengths['randomAmount']
 
 #
-# table to define dots and dashes 
-# this table is 1920 telegraph code used in mechanical telegraph
-# sounders, not modern international morse code.
-# https://en.wikipedia.org/wiki/Telegraph_code#Comparison_of_codes
-#
-# this variation has pauses within the letters
-#
-def morse1920(x):
-    return {
-	' ': 'w',   # word pause
-        'A': '.-',
-        'B': '-...',
-        'C': '..d.',
-        'D': '-..',
-        'E': '.',
-        'F': '.-.',
-        'G': '--.',
-        'H': '....',
-        'I': '..',
-        'J': '-.-.',
-        'K': '-.-',
-        'L': 'L',
-        'M': '--',
-        'N': '-.',
-        'O': '.d.',
-        'P': '.....',
-        'Q': '..-.',
-        'R': '.d..',
-        'S': '...',
-        'T': '-',
-        'U': '..-',
-        'V': '...-',
-        'W': '.--',
-        'X': '.-..',
-        'Y': '..d..',
-        'Z': '...d.',
-	'&': '.d...',
-        '1': '.--.',
-        '2': '..-..',
-        '3': '...-',
-        '4': '....-',
-        '5': '---',
-        '6': '......',
-        '7': '--..',
-        '8': '-....',
-        '9': '-..-.',
-        '0': 'z',
-	'.': '..--..',
-	':': '-.-d..',
-	';': '.-.-.',
-	',': '.-.-',
-	'?': '-..-.',
-	'!': '---.',
-	'\n' : 'w----',
-	'('  : '.-..-',
-	')'  : '.-..-',
-        }.get(x, ' ')  # default is space
-
-#
-# table to define dots and dashes 
-# this is the modern international morse code from 1851
-# 
-# ITU recommendation ITU-R M.1677.1 (10/2009)
-# http://www.itu.int/dms_pubrec/itu-r/rec/m/R-REC-M.1677-1-200910-I!!PDF-E.pdf
-# oddly, the IMC has no ampersand
-#
-def morseIMC(x):
-    return {
-	' ': 'w',   # word pause
-        'A': '.-',
-        'B': '-...',
-        'C': '-.-.',
-        'D': '-..',
-        'E': '.',
-        'F': '..-.',
-        'G': '--.',
-        'H': '....',
-        'I': '..',
-        'J': '.---',
-        'K': '-.-',
-        'L': '.-..',
-        'M': '--',
-        'N': '-.',
-        'O': '---',
-        'P': '.--.',
-        'Q': '--.-',
-        'R': '.-.',
-        'S': '...',
-        'T': '-',
-        'U': '..-',
-        'V': '...-',
-        'W': '.--',
-        'X': '-..-',
-        'Y': '-.--',
-        'Z': '--..',
-        '1': '.----',
-        '2': '..---',
-        '3': '...--',
-        '4': '....-',
-        '5': '.....',
-        '6': '-....',
-        '7': '--...',
-        '8': '---..',
-        '9': '----.',
-        '0': '-----',
-	'.': '.-.-.-',
-	',': '--..--',
-	':': '---...',
-	'?': '..--..',
-	'\'': '.----.',
-	'-': '-....-',
-	'/': '-..-.',
-	'(': '-.--.',
-	')': '-.--.-',
-	'"': '.-..-.',
-	'=': '-...-',
-	'+': '.-.-.',
-	'@': '.--.-.',
-	'%': '-----l-..-.l-----',  # 0/0 
-	unichr(247): '---...',  # division
-	unichr(2715) : '-..-',  # multiplication
-	unichr(2032) : '.----.',  # multiplication
-	unichr(2032) : '.----.',  # minute symbol
-	unichr(2033) : '.----.l.----.',  # second symbol
-        }.get(x, ' ')  # default is space
-
-#
 # defines which morse code variation to use
 #
 def morse(char):
-	return morse1920(char)
+	return activecode[char]
 
 # wrapper for pulses
 
 def key(action):
-	global pinOn
+	global pinOn # track outside of GPIO
 	if action == '1':
 		GPIO.output(gpioPin, GPIO.HIGH)
 		pinOn = True
