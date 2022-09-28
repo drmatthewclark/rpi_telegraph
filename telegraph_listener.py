@@ -26,7 +26,7 @@ def check_threads():
 	for t in message_threads:
 		thred = message_threads[t]	
 		if not thred.is_alive():
-			syslog.syslog(syslog.LOG_ERR,  t + ' monitor thread is dead' )
+			syslog.syslog(syslog.LOG_ERR,  str(t) + ' monitor thread is dead' )
 			exit(1)
 			 
 
@@ -79,13 +79,13 @@ def on_message(message_client, userdata, msg):
 
 def setup_message_listener():
 	worker = Thread(target=process_messages, args=(message_queue,) )
-	message_threads[setup_message_listener] = worker
+	message_threads['setup_message_listener'] = worker
 	worker.setDaemon(True)
 	worker.start()
 	
 def setup_key_listener():
 	worker = Thread(target=process_key, args=(key_queue,) )
-	message_threads[setup_key_listener] = worker
+	message_threads['setup_key_listener'] = worker
 	worker.setDaemon(True)
 	worker.start()
 

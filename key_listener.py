@@ -9,7 +9,6 @@ IP = 'localhost'
 
 qos = 2
 gpioPin = 18
-gpioPinOut = 12
 
 bounce = 2  # milliseconds
 topic = 'key'
