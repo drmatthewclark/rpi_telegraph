@@ -12,6 +12,7 @@ import RPi.GPIO as GPIO
 from time import sleep
 import syslog
 from code import *
+from config import *
 
 # global setup stuff
 
@@ -21,8 +22,6 @@ from code import *
 # 50 - 24 wpm
 # 20 - 60 wpm  too fast for sounder
 
-gpioOutputPin = 12
-gpioMode = GPIO.BOARD
 
 pinOn = False
 lengths = {}

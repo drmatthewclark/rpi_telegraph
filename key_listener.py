@@ -4,6 +4,7 @@ import paho.mqtt.client as mqtt
 import RPi.GPIO as GPIO
 import time as time
 import syslog
+from config import *
 
 # ips addresses to broacast telegraph messages to
 IPS = ['localhost', '10.0.0.1']
@@ -12,8 +13,6 @@ IPS = ['localhost', '10.0.0.1']
 clients = []
 
 qos = 2
-gpioInputPin = 18
-gpioMode = GPIO.BOARD
 
 bounce = 2  # milliseconds
 topic = 'key'
