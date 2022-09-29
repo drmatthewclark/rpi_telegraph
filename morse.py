@@ -21,7 +21,7 @@ from code import *
 # 50 - 24 wpm
 # 20 - 60 wpm  too fast for sounder
 
-gpioPin = 12
+gpioOutputPin = 12
 gpioMode = GPIO.BOARD
 
 pinOn = False
@@ -118,17 +118,17 @@ def morse(char):
 def key(action):
 	global pinOn # track outside of GPIO
 	if action == '1':
-		GPIO.output(gpioPin, GPIO.HIGH)
+		GPIO.output(gpioOutputPin, GPIO.HIGH)
 		pinOn = True
 	elif action == '0':
-		GPIO.output(gpioPin, GPIO.LOW)
+		GPIO.output(gpioOutputPin, GPIO.LOW)
 		pinOn = False
 
 
 def pulse(duration):
-	GPIO.output(gpioPin, GPIO.HIGH)
+	GPIO.output(gpioOutputPin, GPIO.HIGH)
 	sleep(duration + gauss(0, randomDeviation))
-	GPIO.output(gpioPin, GPIO.LOW)
+	GPIO.output(gpioOutputPin, GPIO.LOW)
 	sleep(lengths['dotLength'] + gauss(0, randomDeviation))
 
 def dot():
@@ -194,8 +194,8 @@ def sendCode(code):
 # setup IO ports
 def setup():
    GPIO.setmode(gpioMode) ## Use board pin numbering
-   GPIO.setup(gpioPin, GPIO.OUT)  ## Setup GPIO Pin to OUT
-   GPIO.output(gpioPin, GPIO.LOW)
+   GPIO.setup(gpioOutputPin, GPIO.OUT)  ## Setup GPIO Pin to OUT
+   GPIO.output(gpioOutputPin, GPIO.LOW)
 
 
 def message(dline):

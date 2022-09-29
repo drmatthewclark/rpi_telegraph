@@ -12,7 +12,7 @@ IPS = ['localhost', '10.0.0.1']
 clients = []
 
 qos = 2
-gpioPin = 18
+gpioInputPin = 18
 gpioMode = GPIO.BOARD
 
 bounce = 2  # milliseconds
@@ -42,8 +42,8 @@ def on_connect(client, userdata, flags, rc):
 def setup():
 
 	GPIO.setmode(gpioMode) 
-	GPIO.setup(gpioPin, GPIO.IN, pull_up_down = GPIO.PUD_DOWN)
-	GPIO.add_event_detect(gpioPin, GPIO.BOTH,  callback=key_press,   bouncetime=bounce)
+	GPIO.setup(gpioInputPin, GPIO.IN, pull_up_down = GPIO.PUD_DOWN)
+	GPIO.add_event_detect(gpioInputPin, GPIO.BOTH,  callback=key_press,   bouncetime=bounce)
 
 	for IP in IPS:
 		try:
