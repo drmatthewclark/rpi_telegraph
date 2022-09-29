@@ -22,6 +22,8 @@ from code import *
 # 20 - 60 wpm  too fast for sounder
 
 gpioPin = 12
+gpioMode = GPIO.BOARD
+
 pinOn = False
 lengths = {}
 
@@ -191,7 +193,7 @@ def sendCode(code):
 
 # setup IO ports
 def setup():
-   GPIO.setmode(GPIO.BOARD) ## Use board pin numbering
+   GPIO.setmode(gpioMode) ## Use board pin numbering
    GPIO.setup(gpioPin, GPIO.OUT)  ## Setup GPIO Pin to OUT
    GPIO.output(gpioPin, GPIO.LOW)
 

@@ -9,6 +9,7 @@ IP = 'localhost'
 
 qos = 2
 gpioPin = 18
+gpioMode = GPIO.BOARD
 
 bounce = 2  # milliseconds
 topic = 'key'
@@ -37,7 +38,7 @@ def on_connect(client, userdata, flags, rc):
 
 def setup():
 
-	GPIO.setmode(GPIO.BOARD) 
+	GPIO.setmode(gpioMode) 
 	GPIO.setup(gpioPin, GPIO.IN, pull_up_down = GPIO.PUD_DOWN)
 	GPIO.add_event_detect(gpioPin, GPIO.BOTH,  callback=key_press,   bouncetime=bounce)
 
