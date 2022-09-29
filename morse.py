@@ -1,3 +1,9 @@
+"""
+Matthew Clark (c) 2022
+telegraph
+29 SEP 2022
+"""
+
 #!/usr/bin/python
 
 import sys
@@ -20,21 +26,33 @@ pinOn = False
 lengths = {}
 
 log_level = syslog.LOG_INFO
-syslog.setlogmask(syslog.LOG_UPTO(log_level-1))
+syslog.setlogmask(syslog.LOG_UPTO(log_level))
 
 # defaults
 activecode = morse1920
 wpm = 20
+MAX_WPM = 60
 
 def setLoglevel(lvl):
 	# LOG_EMERG, LOG_ALERT, LOG_CRIT, LOG_ERR, LOG_WARNING, LOG_NOTICE, LOG_INFO, LOG_DEBUG
 	global log_level
-	log_level = lvl
-	syslog.setlogmask(syslog.LOG_UPTO(lvl))
-	return lvl
+	if lvl in loglabels:
+		levelname = loglabels.get(lvl, 'UNKNOWN')
+
+	syslog.setlogmask(syslog.LOG_UPTO(7)) # otherwise the next message might not be logged
+	syslog.syslog(syslog.LOG_INFO, 'set log level to ' + str(lvl) + ':' + levelname)
+	try:
+		log_level = lvl
+		syslog.setlogmask(syslog.LOG_UPTO(lvl))
+	except:
+		syslog.syslog(syslog.LOG_ERR, 'error setting syslog level to ' + str(lvl) )
+
+	return log_level
+
 
 def setSpeed(wpm):
 
+	wpm = min(abs(wpm), MAX_WPM)
 	wordsPerMinute = wpm 
 	dotLength = 60.0/(wordsPerMinute * 50) # based on PARIS
 
@@ -57,7 +75,7 @@ def setSpeed(wpm):
 	lengths['morse0Length'] = morse0Length
 	lengths['randomAmount'] = randomAmount
 
-	syslog.syslog(syslog.LOG_INFO, 'set speed to ' + str(wpm) )
+	syslog.syslog(syslog.LOG_INFO, 'setSpeed: set speed to ' + str(wpm) )
 	return lengths
 
 lengths = setSpeed(wpm)
@@ -67,10 +85,11 @@ def setActivecode(codename):
 
 	if 'IMC' in codename:
 		activecode = morseIMC
-		return('morseIMC')	
 	else:
 		activecode = morse1920
-		return('morse1920')
+
+	syslog.syslog(syslog.LOG_INFO, 'set code set to %s' %  (activecode.get('Name'))  )	
+	return activecode.get('Name')
 
 
 # figure below is worked out using standard characters and spacings

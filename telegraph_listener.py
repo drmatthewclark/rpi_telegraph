@@ -16,7 +16,10 @@ msg_topic = 'telegraph'
 key_topic = 'key'
 control_topic = 'control'
 
-log_level = syslog.LOG_INFO
+INFO = syslog.LOG_INFO
+ERR  = syslog.LOG_ERR
+DEBUG = syslog.LOG_DEBUG
+loglevels = { 'LOG_EMERG':0, 'LOG_ALERT':1, 'LOG_CRIT' : 2, 'LOG_ERR': 3, 'LOG_WARNING':4, 'LOG_NOTICE':5, 'LOG_INFO':6, 'LOG_DEBUG' : 7 }
 
 # global message queue
 message_queue = Queue()
@@ -56,7 +59,7 @@ def process_key(key_queue):
 
 def on_message(message_client, userdata, msg):
 	m = msg.payload.decode('utf-8')
-
+	syslog.syslog(DEBUG, 'message: ' + str(message_client) + ' ' + str(msg))
 	if msg.topic == key_topic:
 		key_queue.put(m)
 
@@ -67,18 +70,23 @@ def on_message(message_client, userdata, msg):
 		try:
 			data = m.split(':')
 			if data[0] == 'speed':
+				syslog.syslog(INFO, 'listener setting speed to ' + data[1])
 				morse.setSpeed(float(data[1]))
-				syslog.syslog(log_level, 'set speed to ' + data[1])
 			if data[0] == 'code':
-				result = morse.setActivecode(data[1])
-				syslog.syslog(log_level, 'set active code to ' + str(result))
-			if data[0] == 'loglevel':
-				log_level = int(data[1])
-				result = morse.setLoglevel(int(data[1]))
-				syslog.syslog(log_level, 'set log level to ' + str(result))
+				syslog.syslog(INFO, 'listener setting active code to ' + str(data[1]))
+				morse.setActivecode(data[1])
 
-		except: 
-			syslog.syslog(syslog.LOG_ERR,'bad control message: ' + m ) 
+			if data[0] == 'loglevel':
+				if data[1].strip() in loglevels:
+					lvl = loglevels[data[1]]
+				else:
+					lvl = data[1]
+
+				syslog.syslog(INFO, 'listener setting log level to ' + str(lvl) )
+				morse.setLoglevel(int(lvl))
+
+		except Exception as err: 
+			syslog.syslog(ERR,'bad control message: ' + m + ' Err: ' + str(err) ) 
 
 	check_threads()
 
@@ -99,10 +107,10 @@ def setup_key_listener():
 def on_connect(client, userdata, flags, rc):
 	result = client.subscribe( [(msg_topic, qos), (key_topic, qos), (control_topic, qos)] )
 	if result != (0,1):
-		syslog.syslog(syslog.LOG_ERR, 'error:' + str(result) + ' telegraph_listener error subscribing' )
+		syslog.syslog(ERR, 'error:' + str(result) + ' telegraph_listener error subscribing' )
 		exit(7)
 
-	syslog.syslog(log_level, str(client) + ' connected' )
+	syslog.syslog(INFO, str(client) + ' connected' )
 
 def setup():
 	morse.setup()
@@ -114,7 +122,7 @@ def setup():
 	message_client.on_connect = on_connect
 	message_client.connect(IP)
 
-	syslog.syslog(log_level, 'telegraph listener started')
+	syslog.syslog(INFO, 'telegraph listener started')
 	message_client.loop_forever()  # Start networking daemon
 
 setup()

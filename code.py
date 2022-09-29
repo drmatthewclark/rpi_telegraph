@@ -1,3 +1,10 @@
+"""
+Matthew Clark  (c)2022
+telegraph
+29 SEP 2022
+"""
+loglevels = { 'LOG_EMERG':0, 'LOG_ALERT':1, 'LOG_CRIT' : 2, 'LOG_ERR': 3, 'LOG_WARNING':4, 'LOG_NOTICE':5, 'LOG_INFO':6, 'LOG_DEBUG' : 7 }
+loglabels = { 0: 'LOG_EMERG', 1:'LOG_ALERT', 2:'LOG_CRIT', 3:'LOG_ERR', 4:'LOG_WARNING', 5:'LOG_NOTICE', 6:'LOG_INFO', 7:'LOG_DEBUG' }
 #
 # table to define dots and dashes 
 # this table is 1920 telegraph code used in mechanical telegraph
@@ -8,6 +15,7 @@
 #
 
 morse1920 =   {
+	'Name': 'morse1920',   # self identify the code map
 	' ': 'w',   # word pause
         'A': '.-',
         'B': '-...',
@@ -67,6 +75,7 @@ morse1920 =   {
 # oddly, the IMC has no ampersand
 #
 morseIMC =  {
+	'Name': 'morseIMC',   # self identify the code map
 	' ': 'w',   # word pause
         'A': '.-',
         'B': '-...',
