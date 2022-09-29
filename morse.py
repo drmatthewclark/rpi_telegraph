@@ -18,8 +18,20 @@ from code import *
 gpioPin = 12
 pinOn = False
 lengths = {}
+
+log_level = syslog.LOG_INFO
+syslog.setlogmask(syslog.LOG_UPTO(log_level-1))
+
+# defaults
 activecode = morse1920
 wpm = 20
+
+def setLoglevel(lvl):
+	# LOG_EMERG, LOG_ALERT, LOG_CRIT, LOG_ERR, LOG_WARNING, LOG_NOTICE, LOG_INFO, LOG_DEBUG
+	global log_level
+	log_level = lvl
+	syslog.setlogmask(syslog.LOG_UPTO(lvl))
+	return lvl
 
 def setSpeed(wpm):
 
@@ -44,6 +56,8 @@ def setSpeed(wpm):
 	lengths['morseLLength'] = morseLLength
 	lengths['morse0Length'] = morse0Length
 	lengths['randomAmount'] = randomAmount
+
+	syslog.syslog(syslog.LOG_INFO, 'set speed to ' + str(wpm) )
 	return lengths
 
 lengths = setSpeed(wpm)
@@ -75,7 +89,8 @@ randomDeviation = lengths['dotLength'] * lengths['randomAmount']
 # defines which morse code variation to use
 #
 def morse(char):
-	return activecode[char]
+	return activecode.get(char, ' ')
+
 
 # wrapper for pulses
 
@@ -96,41 +111,43 @@ def pulse(duration):
 	sleep(lengths['dotLength'] + gauss(0, randomDeviation))
 
 def dot():
-	print("dit ")
+	syslog.syslog(syslog.LOG_DEBUG, "dit ")
 	pulse(lengths['dotLength'])
 
 def dash():
-	print("dah ")
+	syslog.syslog(syslog.LOG_DEBUG, "dah ")
 	pulse(lengths['dashLength'])
 
 def morseL():    # special for old morse L
-	print("dahh ")
+	syslog.syslog(syslog.LOG_DEBUG, "dahh ")
 	pulse(lengths['morseLLength'])
 
 def morse0():   # special dash for old morse 0
-	print("dahhh ")
+	syslog.syslog(syslog.LOG_DEBUG, "dahhh ")
 	pulse(lengths['morse0Length'])
 
 def midLetterPause():   # special mid-character pause for old morse
-	print("pause ",)
+	syslog.syslog(syslog.LOG_DEBUG, "spaced letter pause")
 	sleep(lengths['pauseLength'])
 
 def letterPause():  # pause between letters
-	print("\t\t-letter")
+	syslog.syslog(syslog.LOG_DEBUG, "letter pause" ) 
 	sleep(lengths['letterPauseLength'])
 
 def wordPause():  # pause between words
-	print("*-word space-*")
+	syslog.syslog(syslog.LOG_DEBUG, "*-word space-*") 
 	sleep(lengths['wordPauseLength'])
 
 
 def space():
-	print("space")
+	syslog.syslog(syslog.LOG_DEBUG, "space") 
 	sleep(lengths['wordPauseLength'])
-	print("space")
+	syslog.syslog(syslog.LOG_DEBUG, "space") 
 
 
 def sendCode(code):
+	# code is the character's code like --.- 
+
 	for dahdit in code:
 		if dahdit == '.':
 			dot()
@@ -147,8 +164,9 @@ def sendCode(code):
 		elif dahdit == 'l':
 			letterPause() # pause between letters
 		else:  # any other character, or an actual space
-			print("unexpected letter: ", dahdit)
+			syslog.syslog(syslog.LOG_WARNING, 'unexpected letter ' + dahdit )
 			space()
+
 	letterPause()
 
 
@@ -173,9 +191,9 @@ def message(dline):
      dline = dline.upper().strip()
 
      for char in dline:
-       print (char," ",)
-       morseCode = morse(char)
-       sendCode(morseCode)
+       syslog.syslog(syslog.LOG_DEBUG, str(char) + " ")
+       morseCode = morse(char) # convert char to morse code representation
+       sendCode(morseCode)     # sound out the code
 
 
 #

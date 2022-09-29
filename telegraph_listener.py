@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+
 import paho.mqtt.client as mqtt
 from queue import Queue
 from threading import Thread
@@ -29,10 +30,6 @@ def check_threads():
 			syslog.syslog(syslog.LOG_ERR,  str(t) + ' monitor thread is dead' )
 			exit(1)
 			 
-
-
-def now():
-	return str(datetime.now())
 
 
 def process_messages(message_queue):
@@ -74,7 +71,12 @@ def on_message(message_client, userdata, msg):
 				syslog.syslog(log_level, 'set speed to ' + data[1])
 			if data[0] == 'code':
 				result = morse.setActivecode(data[1])
-				syslog.syslog(log_level, 'set active code to ' + result)
+				syslog.syslog(log_level, 'set active code to ' + str(result))
+			if data[0] == 'loglevel':
+				log_level = int(data[1])
+				result = morse.setLoglevel(int(data[1]))
+				syslog.syslog(log_level, 'set log level to ' + str(result))
+
 		except: 
 			syslog.syslog(syslog.LOG_ERR,'bad control message: ' + m ) 
 
@@ -85,12 +87,22 @@ def setup_message_listener():
 	message_threads['setup_message_listener'] = worker
 	worker.setDaemon(True)
 	worker.start()
+
 	
 def setup_key_listener():
 	worker = Thread(target=process_key, args=(key_queue,) )
 	message_threads['setup_key_listener'] = worker
 	worker.setDaemon(True)
 	worker.start()
+
+
+def on_connect(client, userdata, flags, rc):
+	result = client.subscribe( [(msg_topic, qos), (key_topic, qos), (control_topic, qos)] )
+	if result != (0,1):
+		syslog.syslog(syslog.LOG_ERR, 'error:' + str(result) + ' telegraph_listener error subscribing' )
+		exit(7)
+
+	syslog.syslog(log_level, str(client) + ' connected' )
 
 def setup():
 	morse.setup()
@@ -99,8 +111,8 @@ def setup():
 
 	message_client = mqtt.Client(message_client_name)
 	message_client.on_message = on_message 
+	message_client.on_connect = on_connect
 	message_client.connect(IP)
-	message_client.subscribe( [(msg_topic, qos), (key_topic, qos), (control_topic, qos)] )
 
 	syslog.syslog(log_level, 'telegraph listener started')
 	message_client.loop_forever()  # Start networking daemon

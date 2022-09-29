@@ -23,7 +23,7 @@ syslog.syslog(log_level, 'key listener starting' )
 
 def key_press(channel):
 	# telegraph key pressed
-	status = GPIO.input(gpioPin)
+	status = GPIO.input(channel)
 	client.publish(topic, status, qos)
 
 
