@@ -8,6 +8,7 @@ import time
 from datetime import datetime
 import morse
 import syslog
+from config import *
 
 qos = 2
 IP = 'localhost'
