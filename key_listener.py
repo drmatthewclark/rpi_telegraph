@@ -7,7 +7,8 @@ import syslog
 from config import *
 
 # ips addresses to broacast telegraph messages to
-IPS = ['localhost', '10.0.0.1']
+# is now in config file
+#IPS = ['localhost']
 
 # clients
 clients = []
@@ -16,8 +17,7 @@ qos = 2
 
 bounce = 2  # milliseconds
 topic = 'key'
-down = 1
-up =   0
+
 
 log_level = syslog.LOG_INFO
 
