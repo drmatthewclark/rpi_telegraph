@@ -48,10 +48,10 @@ configure which pins the equipment is connected to
 import RPi.GPIO as GPIO<br>
 gpioMode = GPIO.BOARD
 
-* set what pin to use to control your telegraph *
+* set what pin to use to control your telegraph *<br>
 gpioOutputPin = 12  <br>
 
-* set the pin your key is connected to *
+* set the pin your key is connected to * <br>
 gpioInputPin = 18  <br>
 
 
