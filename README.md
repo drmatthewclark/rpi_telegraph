@@ -48,15 +48,15 @@ configure which pins the equipment is connected to
 import RPi.GPIO as GPIO<br>
 gpioMode = GPIO.BOARD
 
-* set what pin to use to control your telegraph *<br>
+*set what pin to use to control your telegraph* <br>
 gpioOutputPin = 12  <br>
 
-* set the pin your key is connected to * <br>
+*set the pin your key is connected to*  <br>
 gpioInputPin = 18  <br>
 
 
-* set addresss to broadcast to other telegraph sets running this system * 
-* IP addresses for keys to send signals to
+*set addresss to broadcast to other telegraph sets running this system* <br>
+*IP addresses for keys to send signals to*
 
 IPS = ['localhost', '10.0.0.1']
  
