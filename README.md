@@ -35,4 +35,26 @@ one can set messages via a channel to change behavior. Send using 'control' as t
 * mosquitto_pub -t control -m "code:morseIMC" * to set morse1920 (preferred) or morseIMC code
 * mosquitto_pub -t control -m "loglevel:[0-7]" * to set log level 7 is debug.
 
-    
+   
+# Configuration
+
+
+"""
+configure which pins the equipment is connected to
+"""
+
+import RPi.GPIO as GPIO<br>
+gpioMode = GPIO.BOARD
+
+* set what pin to use to control your telegraph *
+gpioOutputPin = 12  <br>
+
+* set the pin your key is connected to *
+gpioInputPin = 18  <br>
+
+
+* set addresss to broadcast to other telegraph sets running this system * 
+# IP addresses for keys to send signals to
+
+IPS = ['localhost', '10.0.0.1']
+ 
