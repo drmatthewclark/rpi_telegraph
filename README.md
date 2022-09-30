@@ -38,6 +38,8 @@ one can set messages via a channel to change behavior. Send using 'control' as t
    
 # Configuration
 
+configuration is in 'config.py 
+
 
 """
 configure which pins the equipment is connected to
@@ -54,7 +56,7 @@ gpioInputPin = 18  <br>
 
 
 * set addresss to broadcast to other telegraph sets running this system * 
-# IP addresses for keys to send signals to
+* IP addresses for keys to send signals to
 
 IPS = ['localhost', '10.0.0.1']
  
