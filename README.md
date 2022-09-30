@@ -60,3 +60,10 @@ gpioInputPin = 18  <br>
 
 IPS = ['localhost', '10.0.0.1']
  
+
+
+to send a text message use mosquitto_pub
+
+*mosquitto_pub -t telegraph -m "this is my message"*
+
+use the -h option to send from other computers, or to send across networks
