@@ -38,7 +38,7 @@ one can set messages via a channel to change behavior. Send using 'control' as t
    
 # Configuration
 
-configuration is in 'config.py 
+configuration is in config.py
 
 
 """
