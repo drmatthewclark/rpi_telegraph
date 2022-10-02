@@ -67,9 +67,6 @@ morse1920 =   {
 
 
 #
-# table to define dots and dashes 
-# this is the modern international morse code from 1851
-# 
 # ITU recommendation ITU-R M.1677.1 (10/2009)
 # http://www.itu.int/dms_pubrec/itu-r/rec/m/R-REC-M.1677-1-200910-I!!PDF-E.pdf
 # oddly, the IMC has no ampersand
@@ -116,6 +113,7 @@ morseIMC =  {
 	'.': '.-.-.-',
 	',': '--..--',
 	':': '---...',
+        ';': '_._._',
 	'?': '..--..',
 	'\'': '.----.',
 	'-': '-....-',
@@ -127,9 +125,16 @@ morseIMC =  {
 	'+': '.-.-.',
 	'@': '.--.-.',
 	'%': '-----l-..-.l-----',  # 0/0 
-	chr(247): '---...',  # division
-	chr(2715) : '-..-',  # multiplication
-	chr(2032) : '.----.',  # multiplication
-	chr(2032) : '.----.',  # minute symbol
-	chr(2033) : '.----.l.----.',  # second symbol
+        '÷'  :'---...',  # division
+	'✕' : '-..-',  # multiplication
+	'′' : '.----.',  # minute symbol
+        'Á' : '.--.-',
+        'Ä' : '.-.-',
+        'É' : '.._..',
+        'Ñ' : '__.__',
+        'Ö' : '___.',
+        'Ü' : '..__',
+        'WAIT' : '._...',
+        'EOW'  : '..._._',
+        'START' : '_._._',
         }
