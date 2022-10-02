@@ -126,30 +126,6 @@ def key_press(channel):
         for client in clients:
                 client.publish(topic, status, qos)
 
-def key_press2(channel, status, microseconds):
-
-        global last_status, last_press, signals
-
-        now =  microseconds * 1.0e6
-
-        # telegraph key pressed
-
-        if gpioInputGnd:   # if grounding gpio pin for signal
-            status = int(not status)
-
-        if status == last_status:
-            return
-
-        last_status = status
-
-        signals.append( (now, status ) )
-        last_press = now
-
-        for client in clients:
-                client.publish(topic, status, qos)
-
-
-
 
 def on_connect(client, userdata, flags, rc):
         if rc != 0:
