@@ -10,7 +10,6 @@ import morse
 import syslog
 from config import *
 
-qos = 2
 IP = 'localhost'
 message_client_name = 'telegraph'
 msg_topic = 'telegraph'
