@@ -105,8 +105,9 @@ def setup_key_listener():
 
 
 def on_connect(client, userdata, flags, rc):
-	result = client.subscribe( [(msg_topic, qos), (key_topic, qos), (control_topic, qos)] )
-	if result != (0,1):
+
+	result, count = client.subscribe( [(msg_topic, qos), (key_topic, qos), (control_topic, qos)] )
+	if result != 0:
 		syslog.syslog(ERR, 'error:' + str(result) + ' telegraph_listener error subscribing' )
 		exit(7)
 
