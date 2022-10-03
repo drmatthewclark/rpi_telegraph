@@ -65,7 +65,9 @@ def setSpeed(wpm):
         wordPauseLength = dotLength * 7   # pause between words, 5 + 1 letter pause for total of 6
         morseLLength = dashLength * 2     # special long dash for old Morse L
         morse0Length = dashLength * 3     # special long dash for old Morse 0
-        randomAmount = 0.05  # 5% variation in length, gaussian randomness
+
+	# now in config
+        #randomAmount = 0.05  # 5% variation in length, gaussian randomness
 
         lengths['dotLength'] = dotLength
         lengths['dashLength'] = dashLength
