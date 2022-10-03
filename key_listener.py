@@ -16,7 +16,6 @@ import re
 # clients
 clients = []
  
-bounce = 10  # milliseconds
 topic = 'key'
 signals = []
 
@@ -92,13 +91,13 @@ def interpret():
                 morseChar += 'd'
 
     char = morse2char(morseChar)
-    msg(morseChar +  '->' + char )
+    msg("'" + morseChar + "'" +  ' : ' + char )
     signals.clear()
 
 
 
 def analyzer():
-    sleeptime =  0.25
+    sleeptime =  0.20
     while True:
         now = time.perf_counter()
         if (now - last_press) > 0.5:
@@ -179,7 +178,6 @@ def setup():
             last_status = 1
 
         GPIO.setup(gpioInputPin, GPIO.IN, pull_up_down = pud)
-        #GPIO.add_event_detect(gpioInputPin, GPIO.BOTH, callback=key_press, bouncetime=bounce)
 
         setup_clients()
         # announce startup
