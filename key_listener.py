@@ -41,13 +41,17 @@ def mesg(log_level, msg):
     syslog.syslog(log_level, msg)
     print(msg)
 
+def msg(message):
+    mesg(log_level, message)
 
 def interpret():
     
     if len(signals) < 2:
         return
 
-    print('interpret...')
+    msg('interpret...')
+    #       0.0235 0.0800 code       dotLength err: -70.651%
+    msg('time     ideal        best fit            % error')
     global dot
     lens = []
     dotdash = []
@@ -70,7 +74,7 @@ def interpret():
         dashdist = abs(abs(d)-dash)
         p = matchLength(d)
         correct = lengths.get(p)
-        print('% 5.4f %5.4f code %15s err: % 6.3f%%' % (d, correct, p, 100.*(abs(d)-correct)/correct  ))
+        msg('% 5.4f %5.4f code %15s err: % 6.3f%%' % (d, correct, p, 100.*(abs(d)-correct)/correct  ))
         if d > 0.0:
             if p == 'dotLength':
                 morseChar += '.'
@@ -88,7 +92,7 @@ def interpret():
                 morseChar += 'd'
 
     char = morse2char(morseChar)
-    print(morseChar, '->',char, '\n')
+    msg(morseChar +  '->' + char )
     signals.clear()
 
 
@@ -105,7 +109,7 @@ def analyzer():
 
 def key_press(channel):
 
-        global last_status, last_press, signals
+        global last_status, last_press
 
         now = time.perf_counter()
         status = GPIO.input(channel)
@@ -113,7 +117,7 @@ def key_press(channel):
         # telegraph key pressed
 
         if gpioInputGnd:   # if grounding gpio pin for signal
-            status = int(not status)
+            status = 1 - status
 
         if status == last_status:
             return
@@ -123,8 +127,12 @@ def key_press(channel):
         signals.append( (now, status ) )
         last_press = now
 
-        for client in clients:
-                client.publish(topic, status, qos)
+        for clientr in clients:
+                client, IP = clientr
+                ecode, count  = client.publish(topic, status, qos)
+                if ecode != 0:
+                    mesg(syslog.LOG_ERR, 'publish error ' + str(ecode) )
+                    client.connect(IP)
 
 
 def on_connect(client, userdata, flags, rc):
@@ -133,6 +141,32 @@ def on_connect(client, userdata, flags, rc):
 
         mesg(log_level, 'key listener connected' )
 
+
+def on_disconnect(client, userdata, rs):
+    mesg(log_level, str(client) + ' ' + str(rs) + ' disconnected')
+    for d in clients:
+        c, ip = d
+        if c == client:
+            ret = client.connect(ip)
+            if ret == 0:
+                mesg(log_level, 'reconnected ' + str(ip))
+            else:
+                mesg(syslog.LOG_ERR, 'failed to reconnect ' + str(ip))
+
+
+def setup_clients():
+
+    for IP in IPS:
+        try:
+            client = mqtt.Client(topic + str(IP) )
+            client.on_connect = on_connect
+            client.on_disconnect = on_disconnect
+            client.connect(IP)
+            clients.append( (client, IP) )
+            mesg(log_level, 'client ' + IP + ' connected' )
+
+        except Exception as exp:
+            mesg(syslog.LOG_ERR, 'error connecting to ' + str(IP) )
 
 def setup():
 
@@ -147,32 +181,29 @@ def setup():
         GPIO.setup(gpioInputPin, GPIO.IN, pull_up_down = pud)
         #GPIO.add_event_detect(gpioInputPin, GPIO.BOTH, callback=key_press, bouncetime=bounce)
 
-        for IP in IPS:
-                try:
-                        client = mqtt.Client(topic + str(IP) )
-                        client.on_connect = on_connect
-                        client.connect(IP)
-                        clients.append(client)
-                        mesg(log_level, 'client ' + IP + ' connected' )
-
-                except Exception as exp:
-                        mesg(syslog.LOG_ERR, 'error connecting to ' + str(IP) )
-
+        setup_clients()
         # announce startup
         mesg(log_level, 'key listener started' )
         return clients
 
-        
+def gpio_listener():
+    while True:
+        GPIO.wait_for_edge(gpioInputPin,GPIO.BOTH)
+        key_press(gpioInputPin)
+       
+
 mesg(log_level, 'key listener starting' )
 clients = setup()
 worker = Thread(target=analyzer)
 worker.setDaemon(True)
 worker.start()
 
+l = Thread(target=gpio_listener)
+l.setDaemon(True)
+l.start()
+
 while True:
-    GPIO.wait_for_edge(gpioInputPin,GPIO.BOTH)
-    key_press(gpioInputPin)
+    time.sleep(100)
+
 
 #clients[0].loop_forever()
-
-
