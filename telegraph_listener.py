@@ -39,8 +39,8 @@ def process_messages(message_queue):
 	"""
 	process the queue of messages to transmit because one could come in while another is still in progress
 	"""
-	active = True
-	while active:
+
+	while True:
 		msg = message_queue.get(block=True)
 		if msg is not None:
 			morse.message(msg)
@@ -50,15 +50,17 @@ def process_key(key_queue):
 	"""
 	process the queue of key presses to transmit because one could come in while another is still in progress
 	"""
-	active = True
-	while active:
+
+	while True:
 		msg = key_queue.get(block=True)
 		if msg is not None:
 			morse.key(msg)
 
 
 def on_message(message_client, userdata, msg):
+
 	m = msg.payload.decode('utf-8')
+
 	syslog.syslog(DEBUG, 'message: ' + str(message_client) + ' ' + str(msg))
 	if msg.topic == key_topic:
 		key_queue.put(m)
@@ -111,7 +113,18 @@ def on_connect(client, userdata, flags, rc):
 		syslog.syslog(ERR, 'error:' + str(result) + ' telegraph_listener error subscribing' )
 		exit(7)
 
-	syslog.syslog(INFO, str(client) + ' connected' )
+	syslog.syslog(INFO, 'telegraph_listener connected' )
+
+
+def on_disconnect(client, userdata, rs):
+
+    mesg(log_level, str(client) + ' ' + str(rs) + ' disconnected')
+    ret = client.connect(ip)
+    if ret == 0:
+        mesg(log_level, 'reconnected ' + str(ip))
+    else:
+        mesg(syslog.LOG_ERR, 'failed to reconnect ' + str(ip))
+
 
 def setup():
 	morse.setup()
@@ -121,6 +134,7 @@ def setup():
 	message_client = mqtt.Client(message_client_name)
 	message_client.on_message = on_message 
 	message_client.on_connect = on_connect
+	message_client.on_disconnect = on_disconnect
 	message_client.connect(IP)
 
 	syslog.syslog(INFO, 'telegraph listener started')

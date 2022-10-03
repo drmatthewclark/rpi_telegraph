@@ -31,11 +31,6 @@ if gpioInputGnd:
     UP = GPIO.FALLING
     DOWN = GPIO.RISING
 
-
-dot = lengths['dotLength']
-dash = lengths['dashLength']
-letterPause = lengths['letterPauseLength']
-
 def mesg(log_level, msg):
     syslog.syslog(log_level, msg)
     print(msg)
@@ -49,12 +44,12 @@ def interpret():
         return
 
     msg('interpret...')
-    #       0.0235 0.0800 code       dotLength err: -70.651%
-    msg('time     ideal        best fit            % error')
-    global dot
+
+    dot = lengths['dotLength']
+    dash = lengths['dashLength']
+
     lens = []
     dotdash = []
-    dash = 3*dot
 
     for i, (t, s) in enumerate(signals):
         if i > 0:
@@ -67,6 +62,9 @@ def interpret():
 
     morseChar = ''
     oldmorse = activecode == 'morse1920'
+
+    #    0.0235 0.0800 code       dotLength err: -70.651%
+    msg('time     ideal        best fit            % error')
 
     for d  in dotdash:
         dotdist = abs(abs(d)-dot)
@@ -91,7 +89,7 @@ def interpret():
                 morseChar += 'd'
 
     char = morse2char(morseChar)
-    msg("'" + morseChar + "'" +  ' : ' + char )
+    msg("'%s'\t: %s" % (morseChar, char) )
     signals.clear()
 
 
@@ -132,6 +130,7 @@ def key_press(channel):
                 if ecode != 0:
                     mesg(syslog.LOG_ERR, 'publish error ' + str(ecode) )
                     client.connect(IP)
+
 
 
 def on_connect(client, userdata, flags, rc):

@@ -30,8 +30,8 @@ log_level = syslog.LOG_INFO
 syslog.setlogmask(syslog.LOG_UPTO(log_level))
 
 # defaults
-activecode = morseIMC
-wpm = 15
+activecode = morseIMC  
+#wpm = 15  # now in config file
 MAX_WPM = 60
 
 def setLoglevel(lvl):
