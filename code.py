@@ -14,8 +14,8 @@ loglabels = { 0: 'LOG_EMERG', 1:'LOG_ALERT', 2:'LOG_CRIT', 3:'LOG_ERR', 4:'LOG_W
 # this variation has pauses within the letters
 #
 
-morse1920 =   {
-	'Name': 'morse1920',   # self identify the code map
+americanMorse  =   {
+	'Name': 'americanMorse',   # self identify the code map
 	' ': 'w',   # word pause
         'A': '.-',
         'B': '-...',

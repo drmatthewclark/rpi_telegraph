@@ -6,9 +6,9 @@ from queue import Queue
 from threading import Thread
 import time
 from datetime import datetime
+from config import *
 import morse
 import syslog
-from config import *
 
 IP = 'localhost'
 message_client_name = 'telegraph'
@@ -16,23 +16,11 @@ msg_topic = 'telegraph'
 key_topic = 'key'
 control_topic = 'control'
 
-INFO = syslog.LOG_INFO
-ERR  = syslog.LOG_ERR
-DEBUG = syslog.LOG_DEBUG
-loglevels = { 'LOG_EMERG':0, 'LOG_ALERT':1, 'LOG_CRIT' : 2, 'LOG_ERR': 3, 'LOG_WARNING':4, 'LOG_NOTICE':5, 'LOG_INFO':6, 'LOG_DEBUG' : 7 }
-
-# global message queue
+# global message queues
 message_queue = Queue()
 key_queue     = Queue()
-message_threads = {}
 
-def check_threads():
-	for t in message_threads:
-		thred = message_threads[t]	
-		if not thred.is_alive():
-			syslog.syslog(syslog.LOG_ERR,  str(t) + ' monitor thread is dead' )
-			exit(1)
-			 
+
 
 
 def process_messages(message_queue):
@@ -42,8 +30,7 @@ def process_messages(message_queue):
 
 	while True:
 		msg = message_queue.get(block=True)
-		if msg is not None:
-			morse.message(msg)
+		morse.message(msg)
 			
 
 def process_key(key_queue):
@@ -53,15 +40,23 @@ def process_key(key_queue):
 
 	while True:
 		msg = key_queue.get(block=True)
-		if msg is not None:
-			morse.key(msg)
+		#syslog.syslog(syslog.LOG_DEBUG, 'process_key message, queue = ' + str(key_queue) )
+		morse.key(msg)
 
 
 def on_message(message_client, userdata, msg):
 
-	m = msg.payload.decode('utf-8')
+	"""
+	 called when a message is recieved; one of
+	 1) a key press or release 
+	 2) a text message to transmit
+	 3) an alteration of parameters, speed, code, loglevel
 
-	syslog.syslog(DEBUG, 'message: ' + str(message_client) + ' ' + str(msg))
+	"""
+	m = msg.payload.decode('utf-8')   # the actual message
+
+	#syslog.syslog(syslog.LOG_DEBUG, 'message recieved  topic: ' + msg.topic + ' message ' + str(msg))
+
 	if msg.topic == key_topic:
 		key_queue.put(m)
 
@@ -72,10 +67,10 @@ def on_message(message_client, userdata, msg):
 		try:
 			data = m.split(':')
 			if data[0] == 'speed':
-				syslog.syslog(INFO, 'listener setting speed to ' + data[1])
+				syslog.syslog(syslog.LOG_INFO, 'listener setting speed to ' + data[1])
 				morse.setSpeed(float(data[1]))
 			if data[0] == 'code':
-				syslog.syslog(INFO, 'listener setting active code to ' + str(data[1]))
+				syslog.syslog(syslog.LOG_INFO, 'listener setting active code to ' + str(data[1]))
 				morse.setActivecode(data[1])
 
 			if data[0] == 'loglevel':
@@ -84,52 +79,54 @@ def on_message(message_client, userdata, msg):
 				else:
 					lvl = data[1]
 
-				syslog.syslog(INFO, 'listener setting log level to ' + str(lvl) )
+				syslog.syslog(syslog.LOG_INFO, 'listener setting log level to ' + str(lvl) )
 				morse.setLoglevel(int(lvl))
 
 		except Exception as err: 
 			syslog.syslog(ERR,'bad control message: ' + m + ' Err: ' + str(err) ) 
 
-	check_threads()
 
-def setup_message_listener():
-	worker = Thread(target=process_messages, args=(message_queue,) )
-	message_threads['setup_message_listener'] = worker
-	worker.setDaemon(True)
-	worker.start()
-
+def daemonize( func, args ):
+        """
+        deamonize a function to run asynchronously
+        """
 	
-def setup_key_listener():
-	worker = Thread(target=process_key, args=(key_queue,) )
-	message_threads['setup_key_listener'] = worker
-	worker.setDaemon(True)
-	worker.start()
+        worker = Thread(target=func, name=str(func), args=args, daemon=True)
+        worker.start()
+        return worker
 
 
 def on_connect(client, userdata, flags, rc):
+	"""
+	called on connection to the server
+	subcribe to the server on connections.
+	"""
 
 	result, count = client.subscribe( [(msg_topic, qos), (key_topic, qos), (control_topic, qos)] )
 	if result != 0:
-		syslog.syslog(ERR, 'error:' + str(result) + ' telegraph_listener error subscribing' )
+		syslog.syslog(syslog.LOG_ERR, 'error:' + str(result) + ' telegraph_listener error subscribing' )
 		exit(7)
 
-	syslog.syslog(INFO, 'telegraph_listener connected' )
+	syslog.syslog(syslog.LOG_INFO, 'telegraph_listener connected' )
 
 
 def on_disconnect(client, userdata, rs):
 
-    mesg(log_level, str(client) + ' ' + str(rs) + ' disconnected')
-    ret = client.connect(ip)
+    """
+    called when the server disconnects
+    """
+    syslog.syslog(syslog.LOG_ERR, str(client) + ' ' + str(rs) + ' disconnected')
+    ret = client.connect(IP)
     if ret == 0:
-        mesg(log_level, 'reconnected ' + str(ip))
+        syslog.syslog(log_level, 'reconnected ' + str(IP))
     else:
-        mesg(syslog.LOG_ERR, 'failed to reconnect ' + str(ip))
+        syslog.syslog(syslog.LOG_ERR, 'failed to reconnect ' + str(IP))
 
 
 def setup():
 	morse.setup()
-	setup_message_listener()
-	setup_key_listener()
+	daemonize(process_messages, (message_queue,) )
+	daemonize(process_key, (key_queue,) )
 
 	message_client = mqtt.Client(message_client_name)
 	message_client.on_message = on_message 
@@ -137,8 +134,9 @@ def setup():
 	message_client.on_disconnect = on_disconnect
 	message_client.connect(IP)
 
-	syslog.syslog(INFO, 'telegraph listener started')
+	syslog.syslog(syslog.LOG_INFO, 'telegraph listener started')
 	message_client.loop_forever()  # Start networking daemon
+	syslog.syslog(syslog.LOG_ERR, 'telegraph listener finished' )
+	exit(2)
 
 setup()
-

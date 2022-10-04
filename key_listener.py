@@ -15,40 +15,47 @@ import re
 
 # clients
 clients = []
- 
+
+# topic to broadcast for key press/release 
 topic = 'key'
+
+pubclient = None
+pubtopic = 'code'
+
 signals = []
 
 last_press = time.perf_counter()
 last_status = 0
 
-log_level = syslog.LOG_INFO
+setLoglevel(log_level)
 
 UP = GPIO.RISING
 DOWN = GPIO.FALLING
 
+# reverse if signal is grounding pin
 if gpioInputGnd:
     UP = GPIO.FALLING
     DOWN = GPIO.RISING
+
 
 def mesg(log_level, msg):
     syslog.syslog(log_level, msg)
     print(msg)
 
-def msg(message):
-    mesg(log_level, message)
 
-def interpret():
-    
+def interpret(interval):
+    """ 
+    interpret  the key clicks to assign to a caracter
+
+    """
+ 
     if len(signals) < 2:
         return
 
-    msg('interpret...')
-
+    mesg(syslog.LOG_INFO, '%6.4f interpret...' % (interval) )
     dot = lengths['dotLength']
     dash = lengths['dashLength']
 
-    lens = []
     dotdash = []
 
     for i, (t, s) in enumerate(signals):
@@ -60,24 +67,31 @@ def interpret():
             if s == 1 and ls == 0:
                 dotdash.append(-interval)
 
+    mesg(syslog.LOG_DEBUG, str(dotdash) )
     morseChar = ''
-    oldmorse = activecode == 'morse1920'
 
     #    0.0235 0.0800 code       dotLength err: -70.651%
-    msg('time     ideal        best fit            % error')
+    mesg(syslog.LOG_INFO, ' time     ideal           best fit         % error')
+    totalerr = 0
 
     for d  in dotdash:
-        dotdist = abs(abs(d)-dot)
-        dashdist = abs(abs(d)-dash)
-        p = matchLength(d)
+
+        p = matchLength(d)  # p is the name of the length, 'dotLength'
         correct = lengths.get(p)
-        msg('% 5.4f %5.4f code %15s err: % 6.3f%%' % (d, correct, p, 100.*(abs(d)-correct)/correct  ))
+        if d < 0:
+          guess = 'pause'
+        else:
+          guess = p
+
+        err = 90.*(abs(d)-correct)/correct
+        totalerr += err
+        mesg(syslog.LOG_INFO, '% 5.4f %5.4f code %15s err: % 6.3f%%' % (d, correct, guess, err  ))
         if d > 0.0:
             if p == 'dotLength':
                 morseChar += '.'
-            elif p == 'morseLLength' and oldmorse:
+            elif p == 'morseLLength':
                 morseChar += 'L'
-            elif p == 'morse0Length' and oldmorse:
+            elif p == 'morse0Length':
                 morseChar += 'z'
             else:
                 morseChar += '-'
@@ -85,30 +99,48 @@ def interpret():
         if d < 0.0:
             if p == 'dotLength':
                 pass
-            elif oldmorse and p == 'pauseLength' and morseChar[-1] == '.':
+            elif p == 'pauseLength' and morseChar[-1] == '.':
                 morseChar += 'd'
 
+    totalerr /= len(dotdash)
     char = morse2char(morseChar)
-    msg("'%s'\t: %s" % (morseChar, char) )
+    result =   "%s\t%s\t%4.2f" % (morseChar, char, totalerr)
+    mesg(syslog.LOG_INFO, result)
+    c, ip = clients[0]
+    c.publish('code', result.encode('utf8'), qos)
     signals.clear()
 
 
 
 def analyzer():
-    sleeptime =  0.20
+    """
+
+    analyze the data collected so far
+
+    """
+    sleeptime = lengths['dotLength']/2
+    criteria =  2*lengths['letterPauseLength'] 
     while True:
-        now = time.perf_counter()
-        if (now - last_press) > 0.5:
-            interpret()
+        interval = time.perf_counter() - last_press
+        if interval > criteria and len(signals) > 0:
+            interpret(interval)
 
         time.sleep(sleeptime)
 
 
 def key_press(channel):
 
+        """
+         called when the key is pressed and when released
+
+	"""
+
         global last_status, last_press
 
+        #mesg(syslog.LOG_DEBUG, 'key pressed pin' + str(channel)  )
+
         now = time.perf_counter()
+
         status = GPIO.input(channel)
 
         # telegraph key pressed
@@ -119,13 +151,14 @@ def key_press(channel):
         if status == last_status:
             return
 
+        last_press = now
         last_status = status
 
         signals.append( (now, status ) )
-        last_press = now
 
         for clientr in clients:
                 client, IP = clientr
+                #mesg(syslog.LOG_DEBUG, 'published  ' + str(status) )
                 ecode, count  = client.publish(topic, status, qos)
                 if ecode != 0:
                     mesg(syslog.LOG_ERR, 'publish error ' + str(ecode) )
@@ -134,25 +167,39 @@ def key_press(channel):
 
 
 def on_connect(client, userdata, flags, rc):
-        if rc != 0:
-                mesg(syslog.LOG_ERR, 'key listener ERROR connecting: ' + str(rc) )
+	"""
+	called on connection to mqtt server 
 
-        mesg(log_level, 'key listener connected' )
+	"""
+	if rc != 0:
+		mesg(syslog.LOG_ERR, 'key listener ERROR connecting: ' + str(rc) )
+
+	mesg(syslog.LOG_INFO, 'key listener connected' )
 
 
 def on_disconnect(client, userdata, rs):
-    mesg(log_level, str(client) + ' ' + str(rs) + ' disconnected')
+    """
+
+    called on disconnect
+
+    """
+
+    mesg(syslog.LOG_INFO, str(client) + ' ' + str(rs) + ' disconnected')
     for d in clients:
         c, ip = d
         if c == client:
             ret = client.connect(ip)
             if ret == 0:
-                mesg(log_level, 'reconnected ' + str(ip))
+                mesg(syslog.LOG_INFO, 'reconnected ' + str(ip))
             else:
                 mesg(syslog.LOG_ERR, 'failed to reconnect ' + str(ip))
 
 
 def setup_clients():
+    """
+    set up the connections
+
+    """
 
     for IP in IPS:
         try:
@@ -166,6 +213,8 @@ def setup_clients():
         except Exception as exp:
             mesg(syslog.LOG_ERR, 'error connecting to ' + str(IP) )
 
+    return pubclient
+ 
 def setup():
 
         GPIO.setmode(gpioMode) 
@@ -178,29 +227,32 @@ def setup():
 
         GPIO.setup(gpioInputPin, GPIO.IN, pull_up_down = pud)
 
-        setup_clients()
+        pubclient = setup_clients()
         # announce startup
-        mesg(log_level, 'key listener started' )
+        mesg(syslog.LOG_INFO, 'key listener started' )
         return clients
 
+
 def gpio_listener():
+    """ 
+    main listening loop for key presses
+    """
+
     while True:
         GPIO.wait_for_edge(gpioInputPin,GPIO.BOTH)
         key_press(gpioInputPin)
        
 
+def daemonize( func ):
+	worker = Thread(target=func, name=str(func), daemon=True)
+	worker.start()
+	return worker
+
+
 mesg(log_level, 'key listener starting' )
 clients = setup()
-worker = Thread(target=analyzer)
-worker.setDaemon(True)
-worker.start()
 
-l = Thread(target=gpio_listener)
-l.setDaemon(True)
-l.start()
+daemonize(analyzer)
+gpl = daemonize(gpio_listener)
+gpl.join()
 
-while True:
-    time.sleep(100)
-
-
-#clients[0].loop_forever()

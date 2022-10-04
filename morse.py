@@ -26,7 +26,6 @@ from config import *
 pinOn = False
 lengths = {}
 
-log_level = syslog.LOG_INFO
 syslog.setlogmask(syslog.LOG_UPTO(log_level))
 
 # defaults
@@ -53,30 +52,41 @@ def setLoglevel(lvl):
 
 def setSpeed(wpm):
 
+        amorse  =  (activecode  == americanMorse)
+
         wpm = min(abs(wpm), MAX_WPM)
         wordsPerMinute = wpm 
         dotLength = 60.0/(wordsPerMinute * 50) # based on PARIS
 
-        dashLength = 3 * dotLength
-        pauseLength = dotLength * 2       # pause for old spaced letters
+        if amorse:
+            dashLength = 2* dotLength
+        else:
+            dashLength = 3 * dotLength
+
         letterPauseLength = dotLength * 3 # pause between letters is 3 dots, but since
                            # each letter has a dot pause, this is added to make 3 dots pause.
 
         wordPauseLength = dotLength * 7   # pause between words, 5 + 1 letter pause for total of 6
+
+        pauseLength = dotLength * 2       # pause for old spaced letters
         morseLLength = dashLength * 2     # special long dash for old Morse L
         morse0Length = dashLength * 3     # special long dash for old Morse 0
 
 	# now in config
         #randomAmount = 0.05  # 5% variation in length, gaussian randomness
 
+        lengths.clear()
+
         lengths['dotLength'] = dotLength
         lengths['dashLength'] = dashLength
-        lengths['pauseLength'] = pauseLength
         lengths['letterPauseLength'] = letterPauseLength
         lengths['wordPauseLength'] = wordPauseLength
-        lengths['morseLLength'] = morseLLength
-        lengths['morse0Length'] = morse0Length
         lengths['randomAmount'] = randomAmount
+        
+        if amorse: 
+           lengths['pauseLength'] = pauseLength
+           lengths['morseLLength'] = morseLLength
+           lengths['morse0Length'] = morse0Length
 
         syslog.syslog(syslog.LOG_INFO, 'setSpeed: set speed to ' + str(wpm) )
         return lengths
@@ -85,8 +95,13 @@ lengths = setSpeed(wpm)
 
 def matchLength(duration):
 
-    ptags = ['dotLength', 'dashLength', 'morseLLength', 'morse0Length']
-    ntags = ['dotLength', 'pauseLength', 'letterPauseLength', 'wordPauseLength' ]
+    ptags = ['dotLength', 'dashLength']
+    ntags = ['dotLength', 'letterPauseLength', 'wordPauseLength' ]
+
+    if activecode == americanMorse:
+       ptags.append('morseLLength')
+       ptags.append('morse0Length')
+       ntags.append('pauseLength')
 
     closest = None
     mindiff = 1e9
@@ -117,9 +132,12 @@ def setActivecode(codename):
         if 'IMC' in codename:
                 activecode = morseIMC
         else:
-                activecode = morse1920
+               activecode = americanMorse
 
-        syslog.syslog(syslog.LOG_INFO, 'set code set to %s' %  (activecode.get('Name'))  )      
+        setSpeed(wpm)  # reset lengths 
+
+        syslog.syslog(syslog.LOG_INFO, 'set code set to %s' %  (activecode.get('Name')))
+
         return activecode.get('Name')
 
 
