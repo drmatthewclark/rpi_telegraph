@@ -39,8 +39,8 @@ def setLoglevel(lvl):
         if lvl in loglabels:
                 levelname = loglabels.get(lvl, 'UNKNOWN')
 
-        syslog.setlogmask(syslog.LOG_UPTO(7)) # otherwise the next message might not be logged
-        syslog.syslog(syslog.LOG_INFO, 'set log level to ' + str(lvl) + ':' + levelname)
+        syslog.syslog(syslog.LOG_ALERT, 'set log level to ' + str(lvl) + ':' + levelname)
+
         try:
                 log_level = lvl
                 syslog.setlogmask(syslog.LOG_UPTO(lvl))
@@ -109,6 +109,7 @@ def matchLength(duration):
 
     if duration < 0.0:
         tags = ntags
+        duration = abs(duration)
     else:
         tags = ptags
 
@@ -117,7 +118,7 @@ def matchLength(duration):
          if tags == ntags:
              dur += lengths['dotLength']
 
-         diff = (abs(duration)-dur)**2
+         diff = abs(duration-dur)
          if diff < mindiff:
             closest = tag
             mindiff = diff

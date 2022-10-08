@@ -67,7 +67,7 @@ def interpret(interval):
             if s == 1 and ls == 0:
                 dotdash.append(-interval)
 
-    mesg(syslog.LOG_DEBUG, str(dotdash) )
+    #mesg(syslog.LOG_DEBUG, str(dotdash) )
     morseChar = ''
 
     #    0.0235 0.0800 code       dotLength err: -70.651%
@@ -83,7 +83,7 @@ def interpret(interval):
         else:
           guess = p
 
-        err = 90.*(abs(d)-correct)/correct
+        err = 100.*(abs(d)-correct)/correct
         totalerr += err
         mesg(syslog.LOG_INFO, '% 5.4f %5.4f code %15s err: % 6.3f%%' % (d, correct, guess, err  ))
         if d > 0.0:
@@ -118,17 +118,18 @@ def analyzer():
     analyze the data collected so far
 
     """
+
     sleeptime = lengths['dotLength']/2
-    criteria =  2*lengths['letterPauseLength'] 
+    criteria =  3*lengths['letterPauseLength'] 
     while True:
-        interval = time.perf_counter() - last_press
+        interval = (time.perf_counter() - last_press)
         if interval > criteria and len(signals) > 0:
             interpret(interval)
 
         time.sleep(sleeptime)
 
 
-def key_press(channel):
+def key_press(channel, now=0):
 
         """
          called when the key is pressed and when released
@@ -138,8 +139,9 @@ def key_press(channel):
         global last_status, last_press
 
         #mesg(syslog.LOG_DEBUG, 'key pressed pin' + str(channel)  )
+        #now = time.perf_counter()
 
-        now = time.perf_counter()
+        last_press = now
 
         status = GPIO.input(channel)
 
@@ -151,11 +153,11 @@ def key_press(channel):
         if status == last_status:
             return
 
-        last_press = now
         last_status = status
 
         signals.append( (now, status ) )
 
+        #mesg(syslog.LOG_DEBUG, 'about to publish  ' + str(status) )
         for clientr in clients:
                 client, IP = clientr
                 #mesg(syslog.LOG_DEBUG, 'published  ' + str(status) )
@@ -240,7 +242,7 @@ def gpio_listener():
 
     while True:
         GPIO.wait_for_edge(gpioInputPin,GPIO.BOTH)
-        key_press(gpioInputPin)
+        key_press(gpioInputPin, now=time.perf_counter())
        
 
 def daemonize( func ):
