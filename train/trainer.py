@@ -49,19 +49,25 @@ def train(files):
         count = 0
         readwords(files)
         print('read', len(wordlist), 'words' )
+        total = 0.0
+
         while True:
                 count += 1
                 nextword = random.choice(wordlist)
                 send(nextword)
-                time.sleep(3)
-                send(nextword)
+                start = time.time()		
                 user = input('word:')
                 if user == '@':
                         savehist()
                         exit(0)
-        
+
+                delay = time.time() - start
+                total += delay
+                average = total/count
+
                 if user.upper() == nextword.upper():
-                        print('correct!')
+
+                        print('correct  %6.4f ave %6.4f' % (delay,average) )
                         if 'correct' not in errors:
                                 errors['correct'] = 0
                         errors['correct'] += 1
