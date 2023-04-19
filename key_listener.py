@@ -43,6 +43,17 @@ def mesg(log_level, msg):
     print(msg)
 
 
+def reconnect():
+    # connect if not connected
+    for client, IP in clients:
+        if not client.is_connected():
+            if client.connect(IP) != 0:
+                mesg(syslog.LOG_ERROR, 'failed to reconnect' )
+                return 1
+    return 0
+
+
+
 def interpret(interval):
     """ 
     interpret  the key clicks to assign to a caracter
@@ -141,14 +152,12 @@ def key_press(channel, now=0):
 
         """
          called when the key is pressed and when released
-
 	"""
 
         global last_status 
 
-        for client, IP in clients:
-            if not client.is_connected():
-                client.connect(IP)
+	# connect if not connected
+        reconnect()
 
         status = GPIO.input(channel)
 
@@ -194,14 +203,12 @@ def on_disconnect(client, userdata, rs):
     """
 
     mesg(syslog.LOG_INFO, str(client) + ' ' + str(rs) + ' disconnected')
-    for d in clients:
-        c, ip = d
-        if c == client:
-            ret = client.connect(ip)
-            if ret == 0:
-                mesg(syslog.LOG_INFO, 'reconnected ' + str(ip))
-            else:
-                mesg(syslog.LOG_ERR, 'failed to reconnect ' + str(ip))
+
+
+    if reconnect() == 0:
+        mesg(syslog.LOG_INFO, 'reconnected ' + str(ip))
+    else:
+        mesg(syslog.LOG_ERR, 'failed to reconnect ' + str(ip))
 
 
 def setup_clients():
@@ -215,7 +222,7 @@ def setup_clients():
             client = mqtt.Client(topic + str(IP) )
             client.on_connect = on_connect
             client.on_disconnect = on_disconnect
-            #client.on_connectionlost = on_disconnect
+            client.on_connectionlost = reconnect
             client.connect(IP)
             clients.append( (client, IP) )
             mesg(log_level, 'client ' + IP + ' connected' )
