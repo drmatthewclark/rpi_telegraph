@@ -146,6 +146,10 @@ def key_press(channel, now=0):
 
         global last_status 
 
+        for client, IP in clients:
+            if not client.is_connected():
+                client.connect(IP)
+
         status = GPIO.input(channel)
 
         # telegraph key pressed
@@ -168,7 +172,7 @@ def key_press(channel, now=0):
                 if ecode != 0:
                     mesg(syslog.LOG_ERR, 'publish error ' + str(ecode) )
                     client.connect(IP)
-
+                    key_press(channel,now)
 
 
 def on_connect(client, userdata, flags, rc):
@@ -211,6 +215,7 @@ def setup_clients():
             client = mqtt.Client(topic + str(IP) )
             client.on_connect = on_connect
             client.on_disconnect = on_disconnect
+            #client.on_connectionlost = on_disconnect
             client.connect(IP)
             clients.append( (client, IP) )
             mesg(log_level, 'client ' + IP + ' connected' )
