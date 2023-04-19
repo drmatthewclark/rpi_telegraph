@@ -222,7 +222,7 @@ def setup_clients():
             client = mqtt.Client(topic + str(IP) )
             client.on_connect = on_connect
             client.on_disconnect = on_disconnect
-            client.on_connectionlost = reconnect
+            #client.on_connectionlost = reconnect
             client.connect(IP)
             clients.append( (client, IP) )
             mesg(log_level, 'client ' + IP + ' connected' )
