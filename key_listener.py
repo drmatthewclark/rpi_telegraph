@@ -19,14 +19,13 @@ clients = []
 # topic to broadcast for key press/release 
 topic = 'key'
 
-pubclient = None
 pubtopic = 'code'
 
 signals = []
 
 last_press = time.perf_counter()
 last_status = 0
-
+keepalive=30
 setLoglevel(log_level)
 
 UP = GPIO.RISING
@@ -47,7 +46,8 @@ def reconnect():
     # connect if not connected
     for client, IP in clients:
         if not client.is_connected():
-            if client.connect(IP) != 0:
+            print('client' + str(client) + ' is not connected')
+            if client.connect(IP, keepalive=keepalive) != 0:
                 mesg(syslog.LOG_ERROR, 'failed to reconnect' )
                 return 1
     return 0
@@ -156,9 +156,6 @@ def key_press(channel, now=0):
 
         global last_status 
 
-	# connect if not connected
-        reconnect()
-
         status = GPIO.input(channel)
 
         # telegraph key pressed
@@ -180,8 +177,7 @@ def key_press(channel, now=0):
                 ecode, count  = client.publish(topic, status, qos)
                 if ecode != 0:
                     mesg(syslog.LOG_ERR, 'publish error ' + str(ecode) )
-                    client.connect(IP)
-                    key_press(channel,now)
+                    reconnect()
 
 
 def on_connect(client, userdata, flags, rc):
@@ -197,18 +193,15 @@ def on_connect(client, userdata, flags, rc):
 
 def on_disconnect(client, userdata, rs):
     """
-
     called on disconnect
-
     """
 
-    mesg(syslog.LOG_INFO, str(client) + ' ' + str(rs) + ' disconnected')
-
+    mesg(syslog.LOG_INFO, 'on_disconnect ' + str(client) + ' ' + str(rs) + ' disconnected')
 
     if reconnect() == 0:
-        mesg(syslog.LOG_INFO, 'reconnected ' + str(ip))
+        mesg(syslog.LOG_INFO, 'reconnected ' + str(client))
     else:
-        mesg(syslog.LOG_ERR, 'failed to reconnect ' + str(ip))
+        mesg(syslog.LOG_ERR, 'failed to reconnect ' + str(client))
 
 
 def setup_clients():
@@ -222,15 +215,13 @@ def setup_clients():
             client = mqtt.Client(topic + str(IP) )
             client.on_connect = on_connect
             client.on_disconnect = on_disconnect
-            #client.on_connectionlost = reconnect
-            client.connect(IP)
+            client.connect(IP, keepalive=keepalive)
             clients.append( (client, IP) )
             mesg(log_level, 'client ' + IP + ' connected' )
 
         except Exception as exp:
             mesg(syslog.LOG_ERR, 'error connecting to ' + str(IP) )
 
-    return pubclient
  
 def setup():
 
@@ -244,7 +235,7 @@ def setup():
 
         GPIO.setup(gpioInputPin, GPIO.IN, pull_up_down = pud)
 
-        pubclient = setup_clients()
+        setup_clients()
         # announce startup
         mesg(syslog.LOG_INFO, 'key listener started' )
         return clients
