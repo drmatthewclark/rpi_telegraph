@@ -46,7 +46,6 @@ def reconnect():
     # connect if not connected
     for client, IP in clients:
         if not client.is_connected():
-            print('client' + str(client) + ' is not connected')
             if client.connect(IP, keepalive=keepalive) != 0:
                 mesg(syslog.LOG_ERROR, 'failed to reconnect' )
                 return 1
@@ -170,6 +169,8 @@ def key_press(channel, now=0):
 
         signals.append( (now, status ) )
 
+        reconnect()
+
         #mesg(syslog.LOG_DEBUG, 'about to publish  ' + str(status) )
         for clientr in clients:
                 client, IP = clientr
@@ -177,7 +178,6 @@ def key_press(channel, now=0):
                 ecode, count  = client.publish(topic, status, qos)
                 if ecode != 0:
                     mesg(syslog.LOG_ERR, 'publish error ' + str(ecode) )
-                    reconnect()
 
 
 def on_connect(client, userdata, flags, rc):
@@ -203,6 +203,8 @@ def on_disconnect(client, userdata, rs):
     else:
         mesg(syslog.LOG_ERR, 'failed to reconnect ' + str(client))
 
+def on_connectionlost():
+	print('connection lost')
 
 def setup_clients():
     """
@@ -215,6 +217,7 @@ def setup_clients():
             client = mqtt.Client(topic + str(IP) )
             client.on_connect = on_connect
             client.on_disconnect = on_disconnect
+            client.on_connectionlost = on_connectionlost
             client.connect(IP, keepalive=keepalive)
             clients.append( (client, IP) )
             mesg(log_level, 'client ' + IP + ' connected' )
