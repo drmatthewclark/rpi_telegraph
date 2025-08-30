@@ -58,6 +58,10 @@ def interpret(interval):
     interpret  the key clicks to assign to a caracter
 
     """
+    if len(clients) == 0:
+         setup_clients()
+    if len(clients) == 0:
+         return
  
     if len(signals) < 2:
         return

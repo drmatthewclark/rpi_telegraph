@@ -137,6 +137,10 @@ def setup():
 	syslog.syslog(syslog.LOG_INFO, 'telegraph listener started')
 	message_client.loop_forever()  # Start networking daemon
 	syslog.syslog(syslog.LOG_ERR, 'telegraph listener finished' )
-	exit(2)
+          
+	return
 
-setup()
+
+if __name__ == '__main__':
+  while True:
+     setup()
