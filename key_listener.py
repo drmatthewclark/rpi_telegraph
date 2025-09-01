@@ -23,7 +23,6 @@ pubtopic = 'code'
 signals = []
 
 last_press = time.perf_counter()
-last_status = 0
 keepalive=30
 setLoglevel(log_level)
 
@@ -150,25 +149,16 @@ def analyzer():
         time.sleep(sleeptime)
 
 
-def key_press(channel, now=0):
+def key_press(channel, status, now=0):
 
         """
          called when the key is pressed and when released
 	"""
 
-        global last_status 
-
-        status = GPIO.input(channel)
-
         # telegraph key pressed
 
         if gpioInputGnd:   # if grounding gpio pin for signal
             status = 1 - status
-
-        if status == last_status:
-            return
-
-        last_status = status
 
         signals.append( (now, status ) )
 
@@ -259,9 +249,16 @@ def gpio_listener():
     """
     global last_press
     while True:
-        GPIO.wait_for_edge(gpioInputPin,GPIO.BOTH)
+        level = GPIO.input(gpioInputPin)
+        while GPIO.input(gpioInputPin) == level:
+            time.sleep(0.008)
+
+        # the following does not always work
+        #GPIO.wait_for_edge(gpioInputPin,GPIO.BOTH, timeout=65535)
+
         last_press=time.perf_counter()
-        key_press(gpioInputPin, now=last_press)
+        # not level because it changed
+        key_press(gpioInputPin, not level, now=last_press)
        
 
 def daemonize( func ):
