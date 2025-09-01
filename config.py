@@ -13,7 +13,9 @@ gpioOutputPin = 12
 gpioInputPin = 18
 gpioInputGnd = False   # signal is grounding gpio pin, vs connecting to 3.3v
 
-wpm = 19
+wpm = 20
+MAX_WPM = 100
+
 randomAmount = 0.02 
 log_level = syslog.LOG_INFO
 

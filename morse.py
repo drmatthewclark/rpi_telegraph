@@ -7,6 +7,7 @@ telegraph
 #!/usr/bin/python
 
 import sys
+import signal
 from random import gauss
 import RPi.GPIO as GPIO
 from time import sleep
@@ -31,7 +32,7 @@ syslog.setlogmask(syslog.LOG_UPTO(log_level))
 # defaults
 activecode = morseIMC  
 #wpm = 15  # now in config file
-MAX_WPM = 60
+MAX_WPM = 100
 
 def setLoglevel(lvl):
         # LOG_EMERG, LOG_ALERT, LOG_CRIT, LOG_ERR, LOG_WARNING, LOG_NOTICE, LOG_INFO, LOG_DEBUG
@@ -252,6 +253,10 @@ def setup():
    GPIO.setup(gpioOutputPin, GPIO.OUT)  ## Setup GPIO Pin to OUT
    GPIO.output(gpioOutputPin, GPIO.LOW)
 
+def clean_exit():
+   GPIO.cleanup()
+   sys.exit(0)
+
 
 def message(dline):
 
@@ -278,4 +283,3 @@ def message(dline):
 #sendCode(endOfMessage)
 #sendCode(endOfTransmission)
 #sendCode(endOfWork)
-

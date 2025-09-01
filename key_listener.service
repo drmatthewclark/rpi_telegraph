@@ -7,7 +7,7 @@ ExecStart=/usr/bin/python3 /home/pi/rpi_telegraph/key_listener.py
 Restart=on-failure
 RestartSec = 10
 CPUSchedulingPolicy=rr
-CPUSchedulingPriority=-15
+CPUSchedulingPriority=1
 
 [Install]
 WantedBy=multi-user.target

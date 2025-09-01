@@ -126,7 +126,7 @@ morseIMC =  {
 	'@': '.--.-.',
 	'%': '-----l-..-.l-----',  # 0/0 
         '÷'  :'---...',  # division
-	'✕' : '-..-',  # multiplication
+	'X' : '-..-',  # multiplication
 	'′' : '.----.',  # minute symbol
         'Á' : '.--.-',
         'Ä' : '.-.-',

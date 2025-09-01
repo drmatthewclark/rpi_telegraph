@@ -4,6 +4,7 @@ import paho.mqtt.client as mqtt
 import RPi.GPIO as GPIO
 import time as time
 import syslog
+import signal
 from threading import Thread
 from config import *
 from morse import *
@@ -13,8 +14,6 @@ import re
 # is now in config file
 #IPS = ['localhost']
 
-# clients
-clients = []
 
 # topic to broadcast for key press/release 
 topic = 'key'
@@ -48,7 +47,7 @@ def reconnect():
         if not client.is_connected():
             if client.connect(IP, keepalive=keepalive) != 0:
                 mesg(syslog.LOG_ERROR, 'failed to reconnect' )
-                return 1
+                return 0
     return 0
 
 
@@ -94,7 +93,7 @@ def interpret(interval):
         p = matchLength(d)  # p is the name of the length, 'dotLength'
         correct = lengths.get(p)
         if d < 0:
-            guess = 'pause'
+           guess = 'pause'
         else:
           guess = p
 
@@ -211,7 +210,7 @@ def setup_clients():
     set up the connections
 
     """
-
+    clients = []
     for IP in IPS:
         try:
             client = mqtt.Client(topic + str(IP) )
@@ -224,23 +223,29 @@ def setup_clients():
 
         except Exception as exp:
             mesg(syslog.LOG_ERR, 'error connecting to ' + str(IP) )
-
+ 
+    return clients
+    
  
 def setup():
 
         GPIO.setmode(gpioMode) 
-        pud = GPIO.PUD_DOWN
-        last_status = 0
+        print('setup gpio')
 
         if gpioInputGnd:
             pud = GPIO.PUD_UP
             last_status = 1
-
+        else:
+            pud = GPIO.PUD_DOWN
+            last_status = 0
+ 
         GPIO.setup(gpioInputPin, GPIO.IN, pull_up_down = pud)
+        print('setup gpio done')
 
-        setup_clients()
+        clients = setup_clients()
         # announce startup
         mesg(syslog.LOG_INFO, 'key listener started' )
+        print('setup done')
         return clients
 
 
@@ -261,10 +266,13 @@ def daemonize( func ):
 	return worker
 
 
-mesg(log_level, 'key listener starting' )
-clients = setup()
+if __name__ == '__main__':
 
-daemonize(analyzer)
-gpl = daemonize(gpio_listener)
-gpl.join()
+   mesg(log_level, 'key listener starting' )
+   clients = setup()
+   print('setup done')
 
+   ana = daemonize(analyzer)
+   gpl = daemonize(gpio_listener)
+   gpl.join()
+   ana.join()

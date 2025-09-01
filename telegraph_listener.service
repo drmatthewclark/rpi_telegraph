@@ -4,10 +4,10 @@ After=network.target
 
 [Service]
 ExecStart=/usr/bin/python3 /home/pi/rpi_telegraph/telegraph_listener.py
-Restart=always
-ControlGroup=cpu:/
+Restart= on-failure
+RestartSec = 10
 CPUSchedulingPolicy=rr
-CPUSchedulingPriority=-15
+CPUSchedulingPriority=1
 
 [Install]
 WantedBy=multi-user.target
