@@ -8,8 +8,16 @@ apt-get install mosquitto
 apt install python3-pip
 apt install python3-paho-mqtt
 apt install mosquitto-clients
-cat "listen  1883 0.0.0.0" >> /etc/mosquitto/mosquitto.conf
-cat "allow_anonymous True " >> /etc/mosquitto/mosquitto.conf
+
+if [  -z  "$( grep listen /etc/mosquitto/mosquitto.conf )" ]
+then
+ echo "listen  1883 0.0.0.0" >> /etc/mosquitto/mosquitto.conf
+fi
+
+if [ -z  "$(grep allow_anonymous /etc/mosquitto/mosquitto.conf)" ]
+then
+echo "allow_anonymous true" >> /etc/mosquitto/mosquitto.conf
+fi
 
 
 
