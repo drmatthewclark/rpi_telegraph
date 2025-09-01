@@ -9,9 +9,9 @@ import syslog
 gpioMode = GPIO.BOARD
 qos = 0
 
-gpioOutputPin = 12
-gpioInputPin = 18
-gpioInputGnd = False   # signal is grounding gpio pin, vs connecting to 3.3v
+gpioOutputPin = 10
+gpioInputPin =   16
+gpioInputGnd = True  # signal is grounding gpio pin, vs connecting to 3.3v
 
 wpm = 20
 MAX_WPM = 100
