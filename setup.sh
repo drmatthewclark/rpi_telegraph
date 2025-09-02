@@ -11,7 +11,7 @@ apt install mosquitto-clients
 
 if [  -z  "$( grep listen /etc/mosquitto/mosquitto.conf )" ]
 then
- echo "listen  1883 0.0.0.0" >> /etc/mosquitto/mosquitto.conf
+ echo "listener 1883 0.0.0.0" >> /etc/mosquitto/mosquitto.conf
 fi
 
 if [ -z  "$(grep allow_anonymous /etc/mosquitto/mosquitto.conf)" ]

@@ -3,7 +3,7 @@ Description=telegraph_listener
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/python3 /home/pi/rpi_telegraph/telegraph_listener.py
+ExecStart=/usr/bin/python3 /usr/local/rpi_telegraph/telegraph_listener.py
 Restart= on-failure
 RestartSec = 10
 CPUSchedulingPolicy=rr

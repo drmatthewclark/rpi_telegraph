@@ -56,10 +56,14 @@ def train(files):
                 nextword = random.choice(wordlist)
                 send(nextword)
                 start = time.time()		
-                user = input('word:')
+                user = input('word: ')
                 if user == '@':
                         savehist()
                         exit(0)
+
+                while user == '#':
+                        send(nextword) 
+                        user = input('word: ')
 
                 delay = time.time() - start
                 total += delay

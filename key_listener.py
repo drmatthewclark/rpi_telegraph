@@ -10,15 +10,9 @@ from config import *
 from morse import *
 import re
 
-# ips addresses to broacast telegraph messages to
-# is now in config file
-#IPS = ['localhost']
-
-
 # topic to broadcast for key press/release 
-topic = 'key'
-
-pubtopic = 'code'
+topic = 'key'      # key press
+pubtopic = 'code'  # change settings
 
 signals = []
 
@@ -149,14 +143,14 @@ def analyzer():
         time.sleep(sleeptime)
 
 
-def key_press(channel, status, now=0):
+def key_press(channel, status, now=0, args = None):
 
         """
          called when the key is pressed and when released
 	"""
-
+        status = int(status)
         # telegraph key pressed
-
+        clients = [args]
         if gpioInputGnd:   # if grounding gpio pin for signal
             status = 1 - status
 
@@ -164,10 +158,8 @@ def key_press(channel, status, now=0):
 
         reconnect()
 
-        #mesg(syslog.LOG_DEBUG, 'about to publish  ' + str(status) )
         for clientr in clients:
                 client, IP = clientr
-                #mesg(syslog.LOG_DEBUG, 'published  ' + str(status) )
                 ecode, count  = client.publish(topic, status, qos)
                 if ecode != 0:
                     mesg(syslog.LOG_ERR, 'publish error ' + str(ecode) )
@@ -213,7 +205,8 @@ def setup_clients():
             client.on_connectionlost = on_connectionlost
             client.connect(IP, keepalive=keepalive)
             clients.append( (client, IP) )
-            mesg(log_level, 'client ' + IP + ' connected' )
+            mesg(syslog.DEBUG, 'client ' + IP + ' connected' )
+            mesg(syslog.DEBUG(f'IP {IP} client {topic} {IP}' ))
 
         except Exception as exp:
             mesg(syslog.LOG_ERR, 'error connecting to ' + str(IP) )
@@ -243,7 +236,7 @@ def setup():
         return clients
 
 
-def gpio_listener():
+def gpio_listener(clients):
     """ 
     main listening loop for key presses
     """
@@ -251,29 +244,34 @@ def gpio_listener():
     while True:
         level = GPIO.input(gpioInputPin)
         while GPIO.input(gpioInputPin) == level:
-            time.sleep(0.008)
+            time.sleep(0.005)
 
         # the following does not always work
         #GPIO.wait_for_edge(gpioInputPin,GPIO.BOTH, timeout=65535)
 
         last_press=time.perf_counter()
         # not level because it changed
-        key_press(gpioInputPin, not level, now=last_press)
+        key_press(gpioInputPin, not level, now=last_press, args=clients)
        
 
-def daemonize( func ):
-	worker = Thread(target=func, name=str(func), daemon=True)
-	worker.start()
-	return worker
+def daemonize( func, args=None ):
+        if args is None:
+            worker = Thread(target=func, name=str(func), daemon=True )
+        else:
+            worker = Thread(target=func, name=str(func), daemon=True, args=args)
+
+        worker.start()
+        return worker
 
 
 if __name__ == '__main__':
 
    mesg(log_level, 'key listener starting' )
    clients = setup()
+   print('clients', clients )
    print('setup done')
 
-   ana = daemonize(analyzer)
-   gpl = daemonize(gpio_listener)
+   ana = daemonize(analyzer )
+   gpl = daemonize(gpio_listener, clients)
    gpl.join()
    ana.join()

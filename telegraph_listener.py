@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-
 import paho.mqtt.client as mqtt
 from queue import Queue
 from threading import Thread
@@ -31,6 +30,7 @@ def process_messages(message_queue):
        try:
           while True:
               msg = message_queue.get(block=True)
+              syslog.syslog(syslog.LOG_DEBUG, 'message processed ' +  msg )
               morse.message(msg)
        except Exception as err:
            print('process_messages', err)
@@ -45,8 +45,7 @@ def process_key(key_queue):
 
        while True:
               msg = key_queue.get(block=True)
-              #syslog.syslog(syslog.LOG_DEBUG, 'process_key message, queue = ' + str(key_queue) )
-              morse.key(msg)
+              morse.key( int(msg) )
 
        print('process_key ending' )
 
@@ -61,7 +60,7 @@ def on_message(message_client, userdata, msg):
        """
        m = msg.payload.decode('utf-8')   # the actual message
 
-       #syslog.syslog(syslog.LOG_DEBUG, 'message recieved  topic: ' + msg.topic + ' message ' + str(msg))
+       syslog.syslog(syslog.LOG_DEBUG, 'message recieved  topic: ' + msg.topic + ' message ' + m)
 
        if msg.topic == key_topic:
               key_queue.put(m)
