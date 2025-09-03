@@ -4,7 +4,6 @@ configure which pins the equipment is connected to
 
 import syslog
 import RPi.GPIO as GPIO
-import syslog
 
 gpioMode = GPIO.BOARD
 qos = 0
