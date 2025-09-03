@@ -67,6 +67,8 @@ def setSpeed(wpm):
         letterPauseLength = dotLength * 3 # pause between letters is 3 dots, but since
                            # each letter has a dot pause, this is added to make 3 dots pause.
 
+        letterPauseLength *= 2  #@ training
+
         wordPauseLength = dotLength * 7   # pause between words, 5 + 1 letter pause for total of 6
 
         pauseLength = dotLength * 2       # pause for old spaced letters
@@ -172,11 +174,13 @@ def morse(char):
 # wrapper for pulses
 
 def key(action):
+
         global pinOn # track outside of GPIO
-        if action == '1':
+
+        if action:
                 GPIO.output(gpioOutputPin, GPIO.HIGH)
                 pinOn = True
-        elif action == '0':
+        else:
                 GPIO.output(gpioOutputPin, GPIO.LOW)
                 pinOn = False
 
@@ -252,6 +256,11 @@ def setup():
    GPIO.setmode(gpioMode) ## Use board pin numbering
    GPIO.setup(gpioOutputPin, GPIO.OUT)  ## Setup GPIO Pin to OUT
    GPIO.output(gpioOutputPin, GPIO.LOW)
+   GPIO.output(gpioOutputPin, GPIO.HIGH)
+   sleep(1)
+   GPIO.output(gpioOutputPin, GPIO.LOW)
+   sleep(1)
+   return
 
 def clean_exit():
    GPIO.cleanup()
