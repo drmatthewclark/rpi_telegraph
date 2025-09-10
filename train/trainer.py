@@ -56,7 +56,7 @@ def train(files):
                 nextword = random.choice(wordlist)
                 send(nextword)
                 start = time.time()		
-                user = input('word: ')
+                user = input('\nword: ')
                 if user == '@':
                         savehist()
                         exit(0)
@@ -71,9 +71,10 @@ def train(files):
 
                 if user.upper() == nextword.upper():
 
-                        print('correct  %6.4f ave %6.4f' % (delay,average) )
+                        print(f'CORRECT time {delay:5.1f}s avg {average:5.1f}s' )
                         if 'correct' not in errors:
                                 errors['correct'] = 0
+
                         errors['correct'] += 1
 
                         if nextword in errors:
@@ -81,7 +82,7 @@ def train(files):
                                 if errors[nextword] == 0:
                                         del errors[nextword]
                 else:
-                        print('word was ', nextword )
+                        print(f'WRONG word was {nextword}' )
                         if nextword in errors:
                                 errors[nextword] += 1
                         else:
@@ -89,12 +90,13 @@ def train(files):
 
                 print(errors)
                 savehist()
+
                 if len(errors) > 5 and count % 50 == 0:
                         for e in errors:
                                 print('char', e )
                                 send(e)
                                 time.sleep(2)
-                time.sleep(1)
+                time.sleep(2)
 
 readhist()
 train(sys.argv)
