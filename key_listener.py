@@ -33,6 +33,13 @@ def mesg(log_level, msg):
     syslog.syslog(log_level, msg)
     print(msg)
 
+def publish(client, code, msg, qos):
+    try:
+       return client.publish(code, msg, qos) # returns ecode, count
+    except: Exception as err:
+       mesg(syslog.LOG_ERR, 'publish error: ', err )
+
+    return -1, -1
 
 def reconnect():
     # connect if not connected
@@ -79,8 +86,7 @@ def interpret(interval):
     morseChar = ''
 
     header =  ' time(ms) ideal(ms)  best fit          % error'
-    c.publish('code', header.encode('utf8'), qos)
-    #mesg(syslog.LOG_INFO, header)
+    publish(c, 'code', header.encode('utf8'), qos)
 
     actual_length = 0
     ideal_length = 0
@@ -98,7 +104,7 @@ def interpret(interval):
         ideal_length += correct
         actual_length += abs(d)   # length
         keymsg = '% 5d    %5d %15s err: % 6.0f%%' % (int(1000*d), int(1000*correct), guess, err  )
-        c.publish('code', keymsg.encode('utf8'), qos )
+        publish(c, 'code', keymsg.encode('utf8'), qos )
 
         #mesg(syslog.LOG_INFO,  keymsg )
         if d > 0.0:
@@ -121,7 +127,7 @@ def interpret(interval):
     char = morse2char(morseChar)
     result =   "%6s\t%s\t%4.0f" % (morseChar, char, totalerr)
     mesg(syslog.LOG_INFO, result)
-    c.publish('code', result.encode('utf8'), qos)
+    publish(c, 'code', result.encode('utf8'), qos)
     signals.clear()
 
 
@@ -160,7 +166,7 @@ def key_press(channel, status, now=0, args = None):
 
         for clientr in clients:
                 client, IP = clientr
-                ecode, count  = client.publish(topic, status, qos)
+                ecode, count  = publish(client, topic, status, qos)
                 if ecode != 0:
                     mesg(syslog.LOG_ERR, 'publish error ' + str(ecode) )
 
