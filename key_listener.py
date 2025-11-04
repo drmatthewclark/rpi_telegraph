@@ -17,11 +17,12 @@ pubtopic = 'code'  # change settings
 signals = []
 
 last_press = time.perf_counter()
-keepalive=30
+keepalive=10
 setLoglevel(log_level)
 
 UP = GPIO.RISING
 DOWN = GPIO.FALLING
+CLIENTS = []    # list of clients
 
 # reverse if signal is grounding pin
 if gpioInputGnd:
@@ -36,18 +37,17 @@ def mesg(log_level, msg):
 def publish(client, code, msg, qos):
     try:
        return client.publish(code, msg, qos) # returns ecode, count
-    except: Exception as err:
+    except Exception as err:
        mesg(syslog.LOG_ERR, 'publish error: ', err )
 
     return -1, -1
 
 def reconnect():
     # connect if not connected
-    for client, IP in clients:
+    for client, IP in CLIENTS:
         if not client.is_connected():
-            if client.connect(IP, keepalive=keepalive) != 0:
-                mesg(syslog.LOG_ERROR, 'failed to reconnect' )
-                return 0
+            mesg(syslog.LOG_INFO, f'reconnecting {IP}' )
+            client.connect_async(IP, keepalive=keepalive)
     return 0
 
 
@@ -57,18 +57,13 @@ def interpret(interval):
     interpret  the key clicks to assign to a caracter
 
     """
-    if len(clients) == 0:
-         setup_clients()
-    if len(clients) == 0:
-         return
- 
     if len(signals) < 2:
         return
 
     mesg(syslog.LOG_INFO, '%6.4f interpret...' % (interval) )
     dot = lengths['dotLength']
     dash = lengths['dashLength']
-    c, ip = clients[0]
+    c, ip = CLIENTS[0]
     dotdash = []
 
     for i, (t, s) in enumerate(signals):
@@ -149,73 +144,68 @@ def analyzer():
         time.sleep(sleeptime)
 
 
-def key_press(channel, status, now=0, args = None):
+def key_press(channel, status, now=0):
 
         """
          called when the key is pressed and when released
 	"""
         status = int(status)
         # telegraph key pressed
-        clients = [args]
         if gpioInputGnd:   # if grounding gpio pin for signal
             status = 1 - status
 
         signals.append( (now, status ) )
 
-        reconnect()
-
-        for clientr in clients:
-                client, IP = clientr
-                ecode, count  = publish(client, topic, status, qos)
-                if ecode != 0:
-                    mesg(syslog.LOG_ERR, 'publish error ' + str(ecode) )
+        for client, IP in CLIENTS:
+           ecode, count  = publish(client, topic, status, qos)
+           if ecode != 0:
+              client.reconnect()
+              ecode, count  = publish(client, topic, status, qos)
+              mesg(syslog.LOG_ERR, f'key_press publish error: {ecode} {IP}')
 
 
 def on_connect(client, userdata, flags, rc):
-	"""
-	called on connection to mqtt server 
+     """
+     called on connection to mqtt server 
+     """
+     if rc != 0:
+         mesg(syslog.LOG_ERR, f'key listener ERROR connecting: {rc}' )
 
-	"""
-	if rc != 0:
-		mesg(syslog.LOG_ERR, 'key listener ERROR connecting: ' + str(rc) )
-
-	mesg(syslog.LOG_INFO, 'key listener connected' )
+     mesg(syslog.LOG_INFO, f'key listener connected {client}' )
 
 
-def on_disconnect(client, userdata, rs):
+
+def on_disconnect(client, userdata, rc):
     """
     called on disconnect
     """
 
-    mesg(syslog.LOG_INFO, 'on_disconnect ' + str(client) + ' ' + str(rs) + ' disconnected')
-
-    if reconnect() == 0:
-        mesg(syslog.LOG_INFO, 'reconnected ' + str(client))
+    mesg(syslog.LOG_INFO, f'on_disconnect: {client} {rc} disconnected')
+ 
+    if client.reconnect() == 0:
+        mesg(syslog.LOG_INFO, f'reconnected {client}' )
     else:
-        mesg(syslog.LOG_ERR, 'failed to reconnect ' + str(client))
+        mesg(syslog.LOG_ERR, f'failed to reconnect {client}' )
 
-def on_connectionlost():
-	print('connection lost')
+
 
 def setup_clients():
     """
     set up the connections
-
     """
     clients = []
     for IP in IPS:
-        try:
-            client = mqtt.Client(topic + str(IP) )
+        #try:
+            client = mqtt.Client(f'{topic}{IP}' )
             client.on_connect = on_connect
             client.on_disconnect = on_disconnect
-            client.on_connectionlost = on_connectionlost
-            client.connect(IP, keepalive=keepalive)
+            client.connect_async(IP, keepalive=keepalive)
             clients.append( (client, IP) )
-            mesg(syslog.DEBUG, 'client ' + IP + ' connected' )
-            mesg(syslog.DEBUG(f'IP {IP} client {topic} {IP}' ))
+            mesg(syslog.LOG_DEBUG, f'client {IP} connected' )
+            mesg(syslog.LOG_DEBUG, f'IP {IP} client {topic} {IP}' )
 
-        except Exception as exp:
-            mesg(syslog.LOG_ERR, 'error connecting to ' + str(IP) )
+        #except Exception as exp:
+        #    mesg(syslog.LOG_ERR, f'error connecting to {IP} err: {exp}' )
  
     return clients
     
@@ -223,7 +213,6 @@ def setup_clients():
 def setup():
 
         GPIO.setmode(gpioMode) 
-        print('setup gpio')
 
         if gpioInputGnd:
             pud = GPIO.PUD_UP
@@ -233,32 +222,45 @@ def setup():
             last_status = 0
  
         GPIO.setup(gpioInputPin, GPIO.IN, pull_up_down = pud)
-        print('setup gpio done')
 
-        clients = setup_clients()
-        # announce startup
-        mesg(syslog.LOG_INFO, 'key listener started' )
-        print('setup done')
-        return clients
+        return setup_clients()
 
 
-def gpio_listener(clients):
+
+def pin_change(channel):
+    # used with 
+    # #GPIO.add_event_detect(gpioInputPin, GPIO.BOTH, callback=pin_change )
+    # but that is not as efficient as a loop
+
+    global last_press
+    last_press =  time.perf_counter()
+    level = GPIO.input(channel)
+    key_press(channel, level, now=last_press )
+
+
+
+
+def gpio_listener():
     """ 
     main listening loop for key presses
     """
     global last_press
+    last_press =  time.perf_counter()
+    wait = 0.002
+
     while True:
         level = GPIO.input(gpioInputPin)
+        # innner loop waiting for in change
         while GPIO.input(gpioInputPin) == level:
-            time.sleep(0.005)
-
-        # the following does not always work
-        #GPIO.wait_for_edge(gpioInputPin,GPIO.BOTH, timeout=65535)
+            time.sleep(wait)
 
         last_press=time.perf_counter()
+        wait_timer = 0
         # not level because it changed
-        key_press(gpioInputPin, not level, now=last_press, args=clients)
-       
+        key_press(gpioInputPin, not level, now=last_press )
+    
+
+   
 
 def daemonize( func, args=None ):
         if args is None:
@@ -270,14 +272,18 @@ def daemonize( func, args=None ):
         return worker
 
 
+
+
 if __name__ == '__main__':
 
    mesg(log_level, 'key listener starting' )
-   clients = setup()
-   print('clients', clients )
+   CLIENTS = setup()
+   print('clients connected ', CLIENTS )
    print('setup done')
 
    ana = daemonize(analyzer )
-   gpl = daemonize(gpio_listener, clients)
+   gpl = daemonize(gpio_listener)
+   key_press(gpioInputPin, 1, 0)
+   key_press(gpioInputPin, 0, 0)
    gpl.join()
    ana.join()
