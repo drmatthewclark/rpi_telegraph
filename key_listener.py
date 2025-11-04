@@ -17,7 +17,7 @@ pubtopic = 'code'  # change settings
 signals = []
 
 last_press = time.perf_counter()
-keepalive=10
+keepalive=65534
 setLoglevel(log_level)
 
 UP = GPIO.RISING
@@ -38,14 +38,15 @@ def publish(client, code, msg, qos):
     try:
        return client.publish(code, msg, qos) # returns ecode, count
     except Exception as err:
-       mesg(syslog.LOG_ERR, 'publish error: ', err )
+       mesg(syslog.LOG_ERR, f'publish error:  {err}' )
 
     return -1, -1
 
 def reconnect():
     # connect if not connected
-    for client, IP in CLIENTS:
+    for client in CLIENTS:
         if not client.is_connected():
+            IP = client._host
             mesg(syslog.LOG_INFO, f'reconnecting {IP}' )
             client.connect_async(IP, keepalive=keepalive)
     return 0
@@ -63,7 +64,7 @@ def interpret(interval):
     mesg(syslog.LOG_INFO, '%6.4f interpret...' % (interval) )
     dot = lengths['dotLength']
     dash = lengths['dashLength']
-    c, ip = CLIENTS[0]
+    client  = CLIENTS[0]
     dotdash = []
 
     for i, (t, s) in enumerate(signals):
@@ -77,11 +78,10 @@ def interpret(interval):
             else:
                 mesg(syslog.LOG_ERR, 'interpret: %f %d,  %f %d' %( t,s, lt, ls ) )
 
-    #mesg(syslog.LOG_DEBUG, str(dotdash) )
     morseChar = ''
 
     header =  ' time(ms) ideal(ms)  best fit          % error'
-    publish(c, 'code', header.encode('utf8'), qos)
+    publish(client, 'code', header.encode('utf8'), qos)
 
     actual_length = 0
     ideal_length = 0
@@ -99,9 +99,8 @@ def interpret(interval):
         ideal_length += correct
         actual_length += abs(d)   # length
         keymsg = '% 5d    %5d %15s err: % 6.0f%%' % (int(1000*d), int(1000*correct), guess, err  )
-        publish(c, 'code', keymsg.encode('utf8'), qos )
+        publish(client, 'code', keymsg.encode('utf8'), qos )
 
-        #mesg(syslog.LOG_INFO,  keymsg )
         if d > 0.0:
             if p == 'dotLength':
                 morseChar += '.'
@@ -122,7 +121,7 @@ def interpret(interval):
     char = morse2char(morseChar)
     result =   "%6s\t%s\t%4.0f" % (morseChar, char, totalerr)
     mesg(syslog.LOG_INFO, result)
-    publish(c, 'code', result.encode('utf8'), qos)
+    publish(client, 'code', result.encode('utf8'), qos)
     signals.clear()
 
 
@@ -156,22 +155,23 @@ def key_press(channel, status, now=0):
 
         signals.append( (now, status ) )
 
-        for client, IP in CLIENTS:
-           ecode, count  = publish(client, topic, status, qos)
+        for client in CLIENTS:
+           ecode, count  = client.publish(topic, status, qos)
            if ecode != 0:
               client.reconnect()
-              ecode, count  = publish(client, topic, status, qos)
-              mesg(syslog.LOG_ERR, f'key_press publish error: {ecode} {IP}')
-
+              ecode, count = client.publish(topic, status, qos) # retry
+              if ecode != 0:
+                  mesg(syslog.LOG_ERR, f'key_press error: {ecode} {client}')
 
 def on_connect(client, userdata, flags, rc):
      """
      called on connection to mqtt server 
      """
      if rc != 0:
-         mesg(syslog.LOG_ERR, f'key listener ERROR connecting: {rc}' )
+         mesg(syslog.LOG_ERR, f'key listener ERROR connecting: {rc} flags {flags}' )
 
-     mesg(syslog.LOG_INFO, f'key listener connected {client}' )
+     mesg(syslog.LOG_INFO, f'on_connect: connected {client} {flags}' )
+
 
 
 
@@ -194,18 +194,18 @@ def setup_clients():
     set up the connections
     """
     clients = []
-    for IP in IPS:
-        #try:
+
+    for IP in IPS:  # list of configured IP addresses to broadcast to
+        try:
             client = mqtt.Client(f'{topic}{IP}' )
             client.on_connect = on_connect
             client.on_disconnect = on_disconnect
-            client.connect_async(IP, keepalive=keepalive)
-            clients.append( (client, IP) )
-            mesg(syslog.LOG_DEBUG, f'client {IP} connected' )
-            mesg(syslog.LOG_DEBUG, f'IP {IP} client {topic} {IP}' )
+            client.connect(IP, keepalive=keepalive)
+            clients.append( client )
+            mesg(syslog.LOG_INFO, f'client {IP} connected {client}' )
 
-        #except Exception as exp:
-        #    mesg(syslog.LOG_ERR, f'error connecting to {IP} err: {exp}' )
+        except Exception as exp:
+            mesg(syslog.LOG_ERR, f'error connecting to {IP} err: {exp}' )
  
     return clients
     
@@ -230,7 +230,7 @@ def setup():
 def pin_change(channel):
     # used with 
     # #GPIO.add_event_detect(gpioInputPin, GPIO.BOTH, callback=pin_change )
-    # but that is not as efficient as a loop
+    # but that is not as efficient as a loop unfortunately
 
     global last_press
     last_press =  time.perf_counter()
@@ -246,7 +246,7 @@ def gpio_listener():
     """
     global last_press
     last_press =  time.perf_counter()
-    wait = 0.002
+    wait = 0.005
 
     while True:
         level = GPIO.input(gpioInputPin)
@@ -255,11 +255,12 @@ def gpio_listener():
             time.sleep(wait)
 
         last_press=time.perf_counter()
-        wait_timer = 0
-        # not level because it changed
+
+        # 'not level'  because it changed
         key_press(gpioInputPin, not level, now=last_press )
     
-
+    mesg(syslog.LOG_ERR, 'gpio_listener loop ended')
+    
    
 
 def daemonize( func, args=None ):
@@ -278,8 +279,6 @@ if __name__ == '__main__':
 
    mesg(log_level, 'key listener starting' )
    CLIENTS = setup()
-   print('clients connected ', CLIENTS )
-   print('setup done')
 
    ana = daemonize(analyzer )
    gpl = daemonize(gpio_listener)
