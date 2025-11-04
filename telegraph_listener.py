@@ -30,7 +30,7 @@ def process_messages(message_queue):
        try:
           while True:
               msg = message_queue.get(block=True)
-              syslog.syslog(syslog.LOG_DEBUG, 'message processed ' +  msg )
+              syslog.syslog(syslog.LOG_DEBUG, f'message processed: {msg}' )
               morse.message(msg)
        except Exception as err:
            print('process_messages', err)
@@ -49,6 +49,7 @@ def process_key(key_queue):
 
        print('process_key ending' )
 
+
 def on_message(message_client, userdata, msg):
 
        """
@@ -60,7 +61,7 @@ def on_message(message_client, userdata, msg):
        """
        m = msg.payload.decode('utf-8')   # the actual message
 
-       syslog.syslog(syslog.LOG_DEBUG, 'message recieved  topic: ' + msg.topic + ' message ' + m)
+       syslog.syslog(syslog.LOG_DEBUG, f'message recieved  topic: {msg.topic} message: {m}')
 
        if msg.topic == key_topic:
               key_queue.put(m)
@@ -72,10 +73,10 @@ def on_message(message_client, userdata, msg):
               try:
                      data = m.split(':')
                      if data[0] == 'speed':
-                            syslog.syslog(syslog.LOG_INFO, 'listener setting speed to ' + data[1])
+                            syslog.syslog(syslog.LOG_INFO, f'listener setting speed to {data[1]}')
                             morse.setSpeed(float(data[1]))
                      if data[0] == 'code':
-                            syslog.syslog(syslog.LOG_INFO, 'listener setting active code to ' + str(data[1]))
+                            syslog.syslog(syslog.LOG_INFO, f'listener setting active code to {data[1]}' )
                             morse.setActivecode(data[1])
 
                      if data[0] == 'loglevel':
@@ -84,11 +85,11 @@ def on_message(message_client, userdata, msg):
                             else:
                                    lvl = data[1]
 
-                            syslog.syslog(syslog.LOG_INFO, 'listener setting log level to ' + str(lvl) )
+                            syslog.syslog(syslog.LOG_INFO, f'listener setting log level to {lvl}' )
                             morse.setLoglevel(int(lvl))
 
               except Exception as err: 
-                     syslog.syslog(ERR,'bad control message: ' + m + ' Err: ' + str(err) ) 
+                     syslog.syslog(syslog.LOG_ERR,  f'bad control message: {m}  err: {err}' ) 
 
 
 def daemonize( func, args ):
@@ -109,7 +110,7 @@ def on_connect(client, userdata, flags, rc):
 
        result, count = client.subscribe( [(msg_topic, qos), (key_topic, qos), (control_topic, qos)] )
        if result != 0:
-              syslog.syslog(syslog.LOG_ERR, 'error:' + str(result) + ' telegraph_listener error subscribing' )
+              syslog.syslog(syslog.LOG_ERR, f'error: {result} telegraph_listener error subscribing' )
               exit(7)
 
        syslog.syslog(syslog.LOG_INFO, 'telegraph_listener connected' )
@@ -120,12 +121,12 @@ def on_disconnect(client, userdata, rs):
     """
     called when the server disconnects
     """
-    syslog.syslog(syslog.LOG_ERR, str(client) + ' ' + str(rs) + ' disconnected')
+    syslog.syslog(syslog.LOG_ERR, f'on_disconnect: {client} {rs}  disconnected')
     ret = client.connect(IP)
     if ret == 0:
-        syslog.syslog(log_level, 'reconnected ' + str(IP))
+        syslog.syslog(log_level, f'on_disconnect: reconnected {IP}')
     else:
-        syslog.syslog(syslog.LOG_ERR, 'failed to reconnect ' + str(IP))
+        syslog.syslog(syslog.LOG_ERR, f'on_disconnect: failed to reconnect {IP}' )
 
 
 def setup():
