@@ -23,10 +23,11 @@ fi
 
 cp key_listener.service /lib/systemd/system/
 cp telegraph_listener.service /lib/systemd/system/
+systemctl daemon-reload
+
 systemctl enable telegraph_listener
 systemctl enable key_listener
 
-
-systemctl start  telegraph_listener
-systemctl start  key_listener
+systemctl restart  telegraph_listener
+#systemctl restart  key_listener
 

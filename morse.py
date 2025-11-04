@@ -67,7 +67,7 @@ def setSpeed(wpm):
         letterPauseLength = dotLength * 3 # pause between letters is 3 dots, but since
                            # each letter has a dot pause, this is added to make 3 dots pause.
 
-        letterPauseLength *= 2  #@ training
+        #letterPauseLength *= 2  #@ training
 
         wordPauseLength = dotLength * 7   # pause between words, 5 + 1 letter pause for total of 6
 

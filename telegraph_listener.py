@@ -140,8 +140,9 @@ def setup():
        message_client.on_message = on_message 
        message_client.on_connect = on_connect
        message_client.on_disconnect = on_disconnect
-       message_client.connect(IP)
+       message_client.connect_async(IP, keepalive=5)
        message_client.loop_forever()  # Start networking daemon
+       syslog.syslog(syslog.LOG_ERR, 'message_client loop_forever ended' )
        
        keyq.join() 
        msq.join()
