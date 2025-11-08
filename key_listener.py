@@ -83,13 +83,13 @@ def interpret(interval):
     header =  ' time(ms) ideal(ms)  best fit          % error'
     publish(client, 'code', header.encode('utf8'), qos)
 
-    actual_length = 0
-    ideal_length = 0
+    actual_length = 1e-6  # avoid divide by zero
+    ideal_length  = 1e-6
 
     for d  in dotdash:
 
         p = matchLength(d)  # p is the name of the length, 'dotLength'
-        correct = lengths.get(p)
+        correct = lengths.get(p) + 1e-6
         if d < 0:
            guess = 'pause'
         else:
