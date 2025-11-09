@@ -31,9 +31,9 @@ and start them
 
 one can set messages via a channel to change behavior. Send using 'control' as the topic
 
-* mosquitto_pub -t control -m "speed:20" * to set speed
-* mosquitto_pub -t control -m "code:morseIMC" * to set morse1920 (preferred) or morseIMC code
-* mosquitto_pub -t control -m "loglevel:[0-7]" * to set log level 7 is debug.
+* mosquitto_pub -t speed -m 20 * to set speed
+* mosquitto_pub -t code  -m IMC  # morse or IMC * to set morse1920 (preferred) or morseIMC code
+* mosquitto_pub -t loglevel -m 0 * to set log level 0-7, 7 is debug.
 
    
 # Configuration

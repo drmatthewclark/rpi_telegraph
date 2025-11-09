@@ -15,7 +15,8 @@ IP = 'localhost'
 message_client_name = 'telegraph'
 msg_topic = 'telegraph'
 key_topic = 'key'
-control_topic = 'control'
+
+control_topics = ['telegraph', 'key', 'speed', 'code', 'loglevel' ] 
 
 # global message queues
 message_queue = Queue()
@@ -60,36 +61,40 @@ def on_message(message_client, userdata, msg):
 
        """
        m = msg.payload.decode('utf-8')   # the actual message
+       topic = msg.topic
 
-       syslog.syslog(syslog.LOG_DEBUG, f'message recieved  topic: {msg.topic} message: {m}')
+       syslog.syslog(syslog.LOG_DEBUG, f'message recieved  topic: {topic} message: {m}')
 
-       if msg.topic == key_topic:
+       if topic == key_topic:
               key_queue.put(m)
 
-       elif msg.topic == msg_topic:       
+       elif topic == msg_topic:       
               message_queue.put(m)
 
-       elif msg.topic == control_topic:
+       elif topic in control_topics:
+            if topic == 'speed':
               try:
-                     data = m.split(':')
-                     if data[0] == 'speed':
-                            syslog.syslog(syslog.LOG_INFO, f'listener setting speed to {data[1]}')
-                            morse.setSpeed(float(data[1]))
-                     if data[0] == 'code':
-                            syslog.syslog(syslog.LOG_INFO, f'listener setting active code to {data[1]}' )
-                            morse.setActivecode(data[1])
+                 speed = float(m)
+                 morse.setSpeed( speed )
+                 syslog.syslog(syslog.LOG_INFO, f'listener setting speed to {speed}')
+              except Exception as err:
+                 syslog.syslog(syslog.LOG_ERR, f'listener error setting speed to {m}:  {err}')
 
-                     if data[0] == 'loglevel':
-                            if data[1].strip() in loglevels:
-                                   lvl = loglevels[data[1]]
-                            else:
-                                   lvl = data[1]
 
-                            syslog.syslog(syslog.LOG_INFO, f'listener setting log level to {lvl}' )
-                            morse.setLoglevel(int(lvl))
+            elif topic == 'loglevel':
+              try:
+                 loglevel = int(m)
+                 morse.setLoglevel( loglevel )
+                 syslog.syslog(syslog.LOG_INFO, f'listener setting log level to {loglevel}')
+              except Exception as err:
+                 syslog.syslog(syslog.LOG_ERR, f'listener error setting loglevel to {m}:  {err}')
 
-              except Exception as err: 
-                     syslog.syslog(syslog.LOG_ERR,  f'bad control message: {m}  err: {err}' ) 
+            elif topic == 'code':
+               syslog.syslog(syslog.LOG_INFO, f'listener setting active code to {m}' )
+               morse.setActivecode(m)
+  
+       else: 
+          syslog.syslog(syslog.LOG_ERR, f'listener topic  {topic}, {m} not understood' )
 
 
 def daemonize( func, args ):
@@ -107,9 +112,12 @@ def on_connect(client, userdata, flags, rc):
        called on connection to the server
        subcribe to the server on connections.
        """
+       #result, count = client.subscribe( [(msg_topic, qos), (key_topic, qos), (control_topics, qos)] )
 
-       result, count = client.subscribe( [(msg_topic, qos), (key_topic, qos), (control_topic, qos)] )
-       if result != 0:
+       for topic in control_topics:
+          result, count = client.subscribe( (topic, qos) )
+
+          if result != 0:
               syslog.syslog(syslog.LOG_ERR, f'error: {result} telegraph_listener error subscribing' )
               exit(7)
 
