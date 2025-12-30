@@ -245,20 +245,27 @@ def gpio_listener():
     main listening loop for key presses
     """
     global last_press
-    last_press =  time.perf_counter()
+    
     wait = 0.005
+    waiting = 0
+    fast_wait = 0.0005 # increase accuracy during messages
+    slow_wait = 0.1    # less accurate timing between messages
 
     while True:
         level = GPIO.input(gpioInputPin)
         # innner loop waiting for in change
         while GPIO.input(gpioInputPin) == level:
             time.sleep(wait)
-
-        last_press=time.perf_counter()
+            waiting += wait
+            if waiting > 10:  # swich to slower loop after 10 sec inactivity
+                 wait = slow_wait
 
         # 'not level'  because it changed
+        last_press =  time.perf_counter()
         key_press(gpioInputPin, not level, now=last_press )
-    
+        wait = fast_wait
+        waiting = 0
+          
     mesg(syslog.LOG_ERR, 'gpio_listener loop ended')
     
    

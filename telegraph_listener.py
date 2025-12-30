@@ -15,6 +15,7 @@ IP = 'localhost'
 message_client_name = 'telegraph'
 msg_topic = 'telegraph'
 key_topic = 'key'
+keepalive = 5
 
 control_topics = ['telegraph', 'key', 'speed', 'code', 'loglevel' ] 
 
@@ -130,14 +131,22 @@ def on_disconnect(client, userdata, rs):
     called when the server disconnects
     """
     syslog.syslog(syslog.LOG_ERR, f'on_disconnect: {client} {rs}  disconnected')
-    ret = client.connect(IP)
+
+    ret = client.connect_async(IP, keepalive=keepalive)
+
     if ret == 0:
         syslog.syslog(log_level, f'on_disconnect: reconnected {IP}')
     else:
         syslog.syslog(syslog.LOG_ERR, f'on_disconnect: failed to reconnect {IP}' )
 
 
+def keep_connection(client):
+        while True:
+          sleep(600)
+          client.connect(IP, keepalive=keepalive)
+
 def setup():
+
        syslog.syslog(syslog.LOG_INFO, 'telegraph listener starting')
        morse.setup()
 
@@ -148,13 +157,16 @@ def setup():
        message_client.on_message = on_message 
        message_client.on_connect = on_connect
        message_client.on_disconnect = on_disconnect
-       message_client.connect_async(IP, keepalive=5)
+       message_client.connect_async(IP, keepalive=keepalive)
        message_client.loop_forever()  # Start networking daemon
        syslog.syslog(syslog.LOG_ERR, 'message_client loop_forever ended' )
-       
+
+       keep = daemonize( keep_connection( message_client ))
+
        keyq.join() 
        msq.join()
- 
+       keep.join()
+  
        syslog.syslog(syslog.LOG_ERR, 'telegraph listener finished' )
 
 
