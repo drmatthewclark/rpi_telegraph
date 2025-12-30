@@ -248,8 +248,8 @@ def gpio_listener():
     
     wait = 0.005
     waiting = 0
-    fast_wait = 0.0005 # increase accuracy during messages
-    slow_wait = 0.1    # less accurate timing between messages
+    fast_wait = 0.0001 # increase accuracy during messages
+    slow_wait = 0.05   # less accurate timing between messages
 
     while True:
         level = GPIO.input(gpioInputPin)
