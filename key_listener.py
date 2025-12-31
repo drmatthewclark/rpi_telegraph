@@ -200,7 +200,7 @@ def setup_clients():
             client = mqtt.Client(f'{topic}{IP}' )
             client.on_connect = on_connect
             client.on_disconnect = on_disconnect
-            client.connect(IP, keepalive=keepalive)
+            client.connect_async(IP, keepalive=keepalive)
             clients.append( client )
             mesg(syslog.LOG_INFO, f'client {IP} connected {client}' )
 
@@ -289,7 +289,5 @@ if __name__ == '__main__':
 
    ana = daemonize(analyzer )
    gpl = daemonize(gpio_listener)
-   key_press(gpioInputPin, 1, 0)
-   key_press(gpioInputPin, 0, 0)
    gpl.join()
    ana.join()
