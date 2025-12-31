@@ -12,12 +12,11 @@ import re
 
 # topic to broadcast for key press/release 
 topic = 'key'      # key press
-pubtopic = 'code'  # change settings
 
 signals = []
 
 last_press = time.perf_counter()
-keepalive=65534
+keepalive=5
 setLoglevel(log_level)
 
 UP = GPIO.RISING
@@ -32,15 +31,6 @@ if gpioInputGnd:
 
 def mesg(log_level, msg):
     syslog.syslog(log_level, msg)
-    print(msg)
-
-def publish(client, code, msg, qos):
-    try:
-       return client.publish(code, msg, qos) # returns ecode, count
-    except Exception as err:
-       mesg(syslog.LOG_ERR, f'publish error:  {err}' )
-
-    return -1, -1
 
 def reconnect():
     # connect if not connected
@@ -81,7 +71,7 @@ def interpret(interval):
     morseChar = ''
 
     header =  ' time(ms) ideal(ms)  best fit          % error'
-    publish(client, 'code', header.encode('utf8'), qos)
+    #publish(client, 'code', header.encode('utf8'), qos)
 
     actual_length = 1e-6  # avoid divide by zero
     ideal_length  = 1e-6
@@ -99,7 +89,7 @@ def interpret(interval):
         ideal_length += correct
         actual_length += abs(d)   # length
         keymsg = '% 5d    %5d %15s err: % 6.0f%%' % (int(1000*d), int(1000*correct), guess, err  )
-        publish(client, 'code', keymsg.encode('utf8'), qos )
+        #publish(client, 'code', keymsg.encode('utf8'), qos )
 
         if d > 0.0:
             if p == 'dotLength':
@@ -121,7 +111,7 @@ def interpret(interval):
     char = morse2char(morseChar)
     result =   "%6s\t%s\t%4.0f" % (morseChar, char, totalerr)
     mesg(syslog.LOG_INFO, result)
-    publish(client, 'code', result.encode('utf8'), qos)
+    #publish(client, 'code', result.encode('utf8'), qos)
     signals.clear()
 
 
@@ -143,6 +133,18 @@ def analyzer():
         time.sleep(sleeptime)
 
 
+
+def publish(client, topic, status, qos ):
+
+    ecode, count  = client.publish(topic, status, qos)
+
+    if ecode != 0:
+        client.reconnect()
+        ecode, count  = client.publish(topic, status, qos)
+        if ecode != 0:
+            mesg(syslog.LOG_ERR, f'key_press error: {ecode} {client}')
+
+
 def key_press(channel, status, now=0):
 
         """
@@ -156,12 +158,8 @@ def key_press(channel, status, now=0):
         signals.append( (now, status ) )
 
         for client in CLIENTS:
-           ecode, count  = client.publish(topic, status, qos)
-           if ecode != 0:
-              client.reconnect()
-              ecode, count = client.publish(topic, status, qos) # retry
-              if ecode != 0:
-                  mesg(syslog.LOG_ERR, f'key_press error: {ecode} {client}')
+           publish(client, topic, status, qos)
+
 
 def on_connect(client, userdata, flags, rc):
      """
@@ -183,9 +181,9 @@ def on_disconnect(client, userdata, rc):
     mesg(syslog.LOG_INFO, f'on_disconnect: {client} {rc} disconnected')
  
     if client.reconnect() == 0:
-        mesg(syslog.LOG_INFO, f'reconnected {client}' )
+        mesg(syslog.LOG_INFO, f'on_disconnect: reconnected {client}' )
     else:
-        mesg(syslog.LOG_ERR, f'failed to reconnect {client}' )
+        mesg(syslog.LOG_ERR, f'on_disconnect: failed to reconnect {client}' )
 
 
 
@@ -250,7 +248,7 @@ def gpio_listener():
     wait = 0.005
     waiting = 0
     fast_wait = 0.0001 # increase accuracy during messages
-    slow_wait = 0.05   # less accurate timing between messages
+    slow_wait = 0.01   # less accurate timing between messages
 
     while True:
         level = GPIO.input(gpioInputPin)
@@ -264,7 +262,12 @@ def gpio_listener():
         # 'not level'  because it changed
         last_press =  time.perf_counter()
         key_press(gpioInputPin, not level, now=last_press )
+         
+        if wait == slow_wait:  # skeeps first message after waiting 
+            key_press(gpioInputPin, not level, now=last_press )
+
         wait = fast_wait
+        time.sleep(wait)
         waiting = 0
           
     mesg(syslog.LOG_ERR, 'gpio_listener loop ended')

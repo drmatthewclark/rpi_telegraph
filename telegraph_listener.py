@@ -15,7 +15,6 @@ IP = 'localhost'
 message_client_name = 'telegraph'
 msg_topic = 'telegraph'
 key_topic = 'key'
-keepalive = 5
 
 control_topics = ['telegraph', 'key', 'speed', 'code', 'loglevel' ] 
 
@@ -25,7 +24,7 @@ key_queue     = Queue()
 
 def logmsg(loglevel, msg ):
       syslog.syslog(loglevel, msg )
-      #print(loglevel, msg )
+      print(loglevel, msg )
 
 
 def process_messages(message_queue):
@@ -69,7 +68,7 @@ def on_message(message_client, userdata, msg):
        m = msg.payload.decode('utf-8')   # the actual message
        topic = msg.topic
 
-       logmsg(syslog.LOG_DEBUG, f'message recieved  topic: {topic} message: {m}  {msg.info}')
+       logmsg(syslog.LOG_DEBUG, f'message recieved  topic: {topic} message: {m}')
 
        if topic == key_topic:
               key_queue.put(m)
@@ -149,15 +148,6 @@ def on_disconnect(client, userdata, rs):
         logmsg(syslog.LOG_ERR, f'on_disconnect: failed to reconnect {host}' )
 
 
-
-def keep_connection(client):
-        while True:
-          time.sleep(600)
-          ret = client.connect(IP, keepalive=keepalive)
-          if ret != 0:
-             logmsg(syslog.LOG_ERR, f'on_disconnect: failed to reconnect {IP}' )
-
-
           
 def setup():
 
@@ -168,19 +158,16 @@ def setup():
        keyq = daemonize(process_key, (key_queue,) )
 
        message_client = mqtt.Client(message_client_name)
+       message_client.user_data_set(IP) # store ip
        message_client.on_message = on_message 
        message_client.on_connect = on_connect
        message_client.on_disconnect = on_disconnect
        message_client.connect_async(IP, keepalive=keepalive)
+       message_client.loop_start()  # Start networking daemon
 
-       keep = daemonize( keep_connection( message_client ))
-       message_client.loop_forever()  # Start networking daemon
-
-       logmsg(syslog.LOG_ERR, 'message_client loop_forever ended' )
 
        keyq.join() 
        msq.join()
-       keep.join()
   
        logmsg(syslog.LOG_ERR, 'telegraph listener finished' )
 
