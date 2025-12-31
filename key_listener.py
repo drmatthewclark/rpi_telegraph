@@ -198,6 +198,7 @@ def setup_clients():
     for IP in IPS:  # list of configured IP addresses to broadcast to
         try:
             client = mqtt.Client(f'{topic}{IP}' )
+            client.user_data_set(IP)
             client.on_connect = on_connect
             client.on_disconnect = on_disconnect
             client.connect_async(IP, keepalive=keepalive)
