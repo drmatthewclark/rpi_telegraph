@@ -12,16 +12,14 @@ import re
 
 # topic to broadcast for key press/release 
 topic = 'key'      # key press
-
+interpret_topic  = 'interpret'
 signals = []
 
 last_press = time.perf_counter()
-keepalive=5
-setLoglevel(log_level)
+keepalive=30
 
 UP = GPIO.RISING
 DOWN = GPIO.FALLING
-CLIENTS = []    # list of clients
 
 # reverse if signal is grounding pin
 if gpioInputGnd:
@@ -29,15 +27,13 @@ if gpioInputGnd:
     DOWN = GPIO.RISING
 
 
-def mesg(log_level, msg):
-    syslog.syslog(log_level, msg)
-
 def reconnect():
     # connect if not connected
+    global CLIENTS
     for client in CLIENTS:
         if not client.is_connected():
             IP = client._host
-            mesg(syslog.LOG_INFO, f'reconnecting {IP}' )
+            logmesg(syslog.LOG_INFO, f'reconnecting {IP}' )
             client.connect_async(IP, keepalive=keepalive)
     return 0
 
@@ -48,10 +44,12 @@ def interpret(interval):
     interpret  the key clicks to assign to a caracter
 
     """
+    global CLIENTS
+
     if len(signals) < 2:
         return
 
-    mesg(syslog.LOG_INFO, '%6.4f interpret...' % (interval) )
+    logmesg(syslog.LOG_INFO, '%6.4f interpret...' % (interval) )
     dot = lengths['dotLength']
     dash = lengths['dashLength']
     client  = CLIENTS[0]
@@ -66,12 +64,12 @@ def interpret(interval):
             elif s == 1 and ls == 0:  # pause interval
                 dotdash.append(-interval)
             else:
-                mesg(syslog.LOG_ERR, 'interpret: %f %d,  %f %d' %( t,s, lt, ls ) )
+                logmesg(syslog.LOG_ERR, 'interpret: %f %d,  %f %d' %( t,s, lt, ls ) )
 
     morseChar = ''
 
     header =  ' time(ms) ideal(ms)  best fit          % error'
-    #publish(client, 'code', header.encode('utf8'), qos)
+    #publish(client, interpret_topic, header.encode('utf8'), qos)
 
     actual_length = 1e-6  # avoid divide by zero
     ideal_length  = 1e-6
@@ -89,7 +87,7 @@ def interpret(interval):
         ideal_length += correct
         actual_length += abs(d)   # length
         keymsg = '% 5d    %5d %15s err: % 6.0f%%' % (int(1000*d), int(1000*correct), guess, err  )
-        #publish(client, 'code', keymsg.encode('utf8'), qos )
+        #publish(client, interpret_topic, guess.encode('utf8'), qos )
 
         if d > 0.0:
             if p == 'dotLength':
@@ -110,8 +108,12 @@ def interpret(interval):
     totalerr = (100.0*actual_length/ideal_length) - 100.0
     char = morse2char(morseChar)
     result =   "%6s\t%s\t%4.0f" % (morseChar, char, totalerr)
-    mesg(syslog.LOG_INFO, result)
-    #publish(client, 'code', result.encode('utf8'), qos)
+    logmesg(syslog.LOG_INFO, result)
+
+    if not char is None:
+       for client in CLIENTS:
+           publish(client, interpret_topic, char.encode('utf8'), qos)
+
     signals.clear()
 
 
@@ -134,15 +136,17 @@ def analyzer():
 
 
 
-def publish(client, topic, status, qos ):
-
+def publish(client, topic, status, qos=qos ):
+ try:
     ecode, count  = client.publish(topic, status, qos)
 
     if ecode != 0:
         client.reconnect()
         ecode, count  = client.publish(topic, status, qos)
         if ecode != 0:
-            mesg(syslog.LOG_ERR, f'key_press error: {ecode} {client}')
+            logmesg(syslog.LOG_ERR, f'key_press error: {ecode} {client}')
+ except Exception as  err:
+     logmesg(syslog.LOG_ERR, f'publish: {err}' )
 
 
 def key_press(channel, status, now=0):
@@ -166,9 +170,9 @@ def on_connect(client, userdata, flags, rc):
      called on connection to mqtt server 
      """
      if rc != 0:
-         mesg(syslog.LOG_ERR, f'key listener ERROR connecting: {rc} flags {flags}' )
+         logmesg(syslog.LOG_ERR, f'key listener ERROR connecting: {rc} flags {flags}' )
 
-     mesg(syslog.LOG_INFO, f'on_connect: connected {client} {flags}' )
+     logmesg(syslog.LOG_INFO, f'on_connect: connected {client} {flags}' )
 
 
 
@@ -178,12 +182,12 @@ def on_disconnect(client, userdata, rc):
     called on disconnect
     """
 
-    mesg(syslog.LOG_INFO, f'on_disconnect: {client} {rc} disconnected')
+    logmesg(syslog.LOG_INFO, f'on_disconnect: {client} {rc} disconnected')
  
     if client.reconnect() == 0:
-        mesg(syslog.LOG_INFO, f'on_disconnect: reconnected {client}' )
+        logmesg(syslog.LOG_INFO, f'on_disconnect: reconnected {client}' )
     else:
-        mesg(syslog.LOG_ERR, f'on_disconnect: failed to reconnect {client}' )
+        logmesg(syslog.LOG_ERR, f'on_disconnect: failed to reconnect {client}' )
 
 
 
@@ -194,24 +198,28 @@ def setup_clients():
     clients = []
 
     for IP in IPS:  # list of configured IP addresses to broadcast to
+        logmesg(syslog.LOG_INFO, f'setup_clients: connecting to client {IP}' )
         try:
             client = mqtt.Client(f'{topic}{IP}' )
             client.user_data_set(IP)
             client.on_connect = on_connect
             client.on_disconnect = on_disconnect
-            client.connect_async(IP, keepalive=keepalive)
+            client.connect(IP, keepalive=keepalive)
             clients.append( client )
-            mesg(syslog.LOG_INFO, f'client {IP} connected {client}' )
+            logmesg(syslog.LOG_INFO, f'setup_clients: client {IP} connected {client}' )
 
         except Exception as exp:
-            mesg(syslog.LOG_ERR, f'error connecting to {IP} err: {exp}' )
+            logmesg(syslog.LOG_ERR, f'setup_clients: error connecting to {IP} err: {exp}' )
  
     return clients
     
  
-def setup():
-
-        GPIO.setmode(gpioMode) 
+def setup_gpio():
+        try:
+           GPIO.setmode(gpioMode) 
+           logmesg(syslog.LOG_INFO, f'setup_gpio success')
+        except Exception as err:
+           logmesg(syslog.LOG_ERR, f'setup_gpio setmode: {err}')
 
         if gpioInputGnd:
             pud = GPIO.PUD_UP
@@ -219,11 +227,10 @@ def setup():
         else:
             pud = GPIO.PUD_DOWN
             last_status = 0
- 
-        GPIO.setup(gpioInputPin, GPIO.IN, pull_up_down = pud)
-
-        return setup_clients()
-
+        try: 
+          GPIO.setup(gpioInputPin, GPIO.IN, pull_up_down = pud)
+        except Exception as err:
+           logmesg(syslog.LOG_ERR, f'setup_gpio setup: {err}')
 
 
 def pin_change(channel):
@@ -244,13 +251,14 @@ def gpio_listener():
     main listening loop for key presses
     """
     global last_press
-    
+    setup_gpio() 
     wait = 0.005
     waiting = 0
     fast_wait = 0.0001 # increase accuracy during messages
     slow_wait = 0.01   # less accurate timing between messages
 
     while True:
+      try:
         level = GPIO.input(gpioInputPin)
         # innner loop waiting for in change
         while GPIO.input(gpioInputPin) == level:
@@ -269,8 +277,11 @@ def gpio_listener():
         wait = fast_wait
         time.sleep(wait)
         waiting = 0
-          
-    mesg(syslog.LOG_ERR, 'gpio_listener loop ended')
+      except Exception as err:
+          pass
+          #logmesg(syslog.LOG_ERR, f'gpio_listener {err}')
+
+    logmesg(syslog.LOG_ERR, 'gpio_listener loop ended')
     
    
 
@@ -283,15 +294,28 @@ def daemonize( func, args=None ):
         worker.start()
         return worker
 
+# publish some stuff to keep awake
+def keep(sleeptime=10):
 
+  time.sleep(sleeptime)
+  while True:
+    for client in CLIENTS:
+        publish(client, 'k', '' )
+
+    time.sleep(sleeptime)
 
 
 if __name__ == '__main__':
 
-   mesg(log_level, 'key listener starting' )
-   CLIENTS = setup()
+   logmesg(syslog.LOG_INFO, 'key listener starting' )
+   setup_gpio()
+   CLIENTS = setup_clients()
+   logmesg(syslog.LOG_INFO, 'clients ' + str(CLIENTS) )
 
-   ana = daemonize(analyzer )
-   gpl = daemonize(gpio_listener)
+   ana = daemonize(analyzer )  # figures out the letters
+   gpl = daemonize(gpio_listener) # listens to local key
+   keep = daemonize(keep(10))
+
    gpl.join()
    ana.join()
+   keep.join()

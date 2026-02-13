@@ -16,11 +16,11 @@ wpm = 20
 MAX_WPM = 100
 
 randomAmount = 0.02 
-log_level = syslog.LOG_INFO
 
 # IP addresses for keys to send signals to
-
+IP = 'localhost'
 IPS = ['localhost']
 
-
-loglevels = { 'LOG_EMERG':0, 'LOG_ALERT':1, 'LOG_CRIT' : 2, 'LOG_ERR': 3, 'LOG_WARNING':4, 'LOG_NOTICE':5, 'LOG_INFO':6, 'LOG_DEBUG' : 7 }
+# wrapper to allow printing to console etc
+def logmesg(log_level, msg):
+    syslog.syslog(log_level, msg)
