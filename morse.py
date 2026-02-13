@@ -27,29 +27,10 @@ from config import *
 pinOn = False
 lengths = {}
 
-syslog.setlogmask(syslog.LOG_UPTO(log_level))
-
 # defaults
 activecode = morseIMC  
 #wpm = 15  # now in config file
 MAX_WPM = 100
-
-def setLoglevel(lvl):
-        # LOG_EMERG, LOG_ALERT, LOG_CRIT, LOG_ERR, LOG_WARNING, LOG_NOTICE, LOG_INFO, LOG_DEBUG
-        global log_level
-        if lvl in loglabels:
-                levelname = loglabels.get(lvl, 'UNKNOWN')
-
-        syslog.syslog(syslog.LOG_ALERT, 'set log level to ' + str(lvl) + ':' + levelname)
-
-        try:
-                log_level = lvl
-                syslog.setlogmask(syslog.LOG_UPTO(lvl))
-        except:
-                syslog.syslog(syslog.LOG_ERR, 'error setting syslog level to ' + str(lvl) )
-
-        return log_level
-
 
 def setSpeed(wpm):
 
