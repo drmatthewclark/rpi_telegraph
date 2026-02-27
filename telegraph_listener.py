@@ -84,6 +84,11 @@ def on_message(message_client, userdata, msg):
             elif topic == 'code':
                logmesg(syslog.LOG_INFO, f'listener setting active code to {m}' )
                morse.setActivecode(m)
+
+               with open(codenamefile, 'w') as fle: # write file for key listener to know the new code
+                     fle.write(m)
+
+               logmesg(syslog.LOG_INFO, f'listener set active code to {morse.getActiveCode()}' )
   
        else: 
           logmesg(syslog.LOG_ERR, f'listener topic  {topic}, {m} not understood' )

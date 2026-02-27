@@ -12,29 +12,44 @@ from random import gauss
 import RPi.GPIO as GPIO
 from time import sleep
 import syslog
-from code import *
+from code import codesets
 from config import *
+
+activecode = codesets['morseIMC']
 
 # global setup stuff
 
+# figure below is worked out using standard characters and spacings
+# PARIS has 50 elements
 # interval lengths in seconds
 # 80 - 15 wpm
 # 60 - 20 wpm
 # 50 - 24 wpm
 # 20 - 60 wpm  too fast for sounder
 
+# standard messages
+endOfMessage = 'www.-.-.'  
+endOfTransmission = '.-.-.w'
+endOfWork = '...-.-'
+
+# make it a little less mechanically uniform with a Gaussian
+# deviation of 5%
+randomDeviation = 0 # lengths['dotLength'] * lengths['randomAmount']
 
 pinOn = False
 lengths = {}
 
 # defaults
-activecode = morseIMC  
+
+
 #wpm = 15  # now in config file
 MAX_WPM = 100
 
 def setSpeed(wpm):
+        if activecode is None:
+            return
 
-        amorse  =  (activecode  == americanMorse)
+        amorse  =  (activecode['Name']  == 'americanMorse')
 
         wpm = min(abs(wpm), MAX_WPM)
         wordsPerMinute = wpm 
@@ -72,17 +87,16 @@ def setSpeed(wpm):
            lengths['morseLLength'] = morseLLength
            lengths['morse0Length'] = morse0Length
 
-        syslog.syslog(syslog.LOG_INFO, 'setSpeed: set speed to ' + str(wpm) )
+        logmesg(syslog.LOG_INFO, 'setSpeed: set speed to ' + str(wpm) )
         return lengths
 
-lengths = setSpeed(wpm)
 
 def matchLength(duration):
 
     ptags = ['dotLength', 'dashLength']
     ntags = ['dotLength', 'letterPauseLength', 'wordPauseLength' ]
 
-    if activecode == americanMorse:
+    if activecode['Name']  == 'americanMorse':
        ptags.append('morseLLength')
        ptags.append('morse0Length')
        ntags.append('pauseLength')
@@ -110,43 +124,44 @@ def matchLength(duration):
     return closest
 
 
+def getActiveCode():
+       return activecode['Name']
 
 def setActivecode(codename):
-        global activecode
 
-        if 'IMC' in codename:
-                activecode = morseIMC
-        else:
-               activecode = americanMorse
+        global activecode # should be global
+        assert not activecode is None, 'active code is None still'
+
+        logmesg(syslog.LOG_INFO, 'setActivecode: set code set to %s' %  (activecode.get('Name', 'error')))
+
+        global randomDeviation
+        activecode  = codesets.get(codename, codesets['morseIMC'] )
 
         setSpeed(wpm)  # reset lengths 
 
-        syslog.syslog(syslog.LOG_INFO, 'set code set to %s' %  (activecode.get('Name')))
 
-        return activecode.get('Name')
+        if not codename in codesets:
+            logmesg(syslog.LOG_ERR, f'requested code {codename} not in codesets {codesets.keys()}')
+            logmesg(syslog.LOG_ERR, f'defaulting to morseIMC')
+
+        assert activecode['Name'] == getActiveCode()
+        randomDeviation = lengths['dotLength'] * lengths['randomAmount']
+
+        return activecode.get('Name', 'error')
 
 
 def morse2char(code):
+
     for x in activecode:
         if activecode[x] == code:
             return x
     return None
 
 
-# figure below is worked out using standard characters and spacings
-# PARIS has 50 elements
-
-# standard messages
-endOfMessage = 'www.-.-.'  
-endOfTransmission = '.-.-.w'
-endOfWork = '...-.-'
-
-# make it a little less mechanically uniform with a Gaussian
-# deviation of 5%
-randomDeviation = lengths['dotLength'] * lengths['randomAmount']
 
 #
 # defines which morse code variation to use
+# returns the .-- code for the given character
 #
 def morse(char):
         return activecode.get(char, ' ')
@@ -173,38 +188,38 @@ def pulse(duration):
         sleep(lengths['dotLength'] + gauss(0, randomDeviation))
 
 def dot():
-        syslog.syslog(syslog.LOG_DEBUG, "dit ")
+        logmesg(syslog.LOG_DEBUG, "dit ")
         pulse(lengths['dotLength'])
 
 def dash():
-        syslog.syslog(syslog.LOG_DEBUG, "dah ")
+        logmesg(syslog.LOG_DEBUG, "dah ")
         pulse(lengths['dashLength'])
 
 def morseL():    # special for old morse L
-        syslog.syslog(syslog.LOG_DEBUG, "dahh ")
+        logmesg(syslog.LOG_DEBUG, "dahh ")
         pulse(lengths['morseLLength'])
 
 def morse0():   # special dash for old morse 0
-        syslog.syslog(syslog.LOG_DEBUG, "dahhh ")
+        logmesg(syslog.LOG_DEBUG, "dahhh ")
         pulse(lengths['morse0Length'])
 
 def midLetterPause():   # special mid-character pause for old morse
-        syslog.syslog(syslog.LOG_DEBUG, "spaced letter pause")
+        logmesg(syslog.LOG_DEBUG, "spaced letter pause")
         sleep(lengths['pauseLength'])
 
 def letterPause():  # pause between letters
-        syslog.syslog(syslog.LOG_DEBUG, "letter pause" ) 
+        logmesg(syslog.LOG_DEBUG, "letter pause" ) 
         sleep(lengths['letterPauseLength'])
 
 def wordPause():  # pause between words
-        syslog.syslog(syslog.LOG_DEBUG, "*-word space-*") 
+        logmesg(syslog.LOG_DEBUG, "*-word space-*") 
         sleep(lengths['wordPauseLength'])
 
 
 def space():
-        syslog.syslog(syslog.LOG_DEBUG, "space") 
+        logmesg(syslog.LOG_DEBUG, "space") 
         sleep(lengths['wordPauseLength'])
-        syslog.syslog(syslog.LOG_DEBUG, "space") 
+        logmesg(syslog.LOG_DEBUG, "space") 
 
 
 def sendCode(code):
@@ -226,7 +241,7 @@ def sendCode(code):
                 elif dahdit == 'l':
                         letterPause() # pause between letters
                 else:  # any other character, or an actual space
-                        syslog.syslog(syslog.LOG_WARNING, 'unexpected letter ' + dahdit )
+                        logmesg(syslog.LOG_WARNING, f'unexpected letter {code},  {dahdit}'  )
                         space()
 
         letterPause()
@@ -262,7 +277,7 @@ def message(dline):
      dline = dline.upper().strip()
 
      for char in dline:
-       syslog.syslog(syslog.LOG_DEBUG, str(char) + " ")
+       logmesg(syslog.LOG_DEBUG, str(char) + " ")
        morseCode = morse(char) # convert char to morse code representation
        sendCode(morseCode)     # sound out the code
 
@@ -273,3 +288,4 @@ def message(dline):
 #sendCode(endOfMessage)
 #sendCode(endOfTransmission)
 #sendCode(endOfWork)
+

@@ -4,11 +4,13 @@ import paho.mqtt.client as mqtt
 import RPi.GPIO as GPIO
 import time as time
 import syslog
+import os
 import signal
 from threading import Thread
 from config import *
-from morse import *
+import morse
 import re
+
 
 # topic to broadcast for key press/release 
 topic = 'key'      # key press
@@ -27,6 +29,8 @@ if gpioInputGnd:
     DOWN = GPIO.RISING
 
 
+
+
 def reconnect():
     # connect if not connected
     global CLIENTS
@@ -38,6 +42,14 @@ def reconnect():
     return 0
 
 
+def checkCode():
+    # codenamefile is in config
+    if os.path.exists(codenamefile):
+        with open(codenamefile, 'r') as fle:
+             codename = fle.read()
+        morse.setActivecode(codename)
+        os.remove(codenamefile)
+
 
 def interpret(interval):
     """ 
@@ -48,10 +60,13 @@ def interpret(interval):
 
     if len(signals) < 2:
         return
+    if len(CLIENTS) == 0: 
+       return
 
+    checkCode()
     logmesg(syslog.LOG_INFO, '%6.4f interpret...' % (interval) )
-    dot = lengths['dotLength']
-    dash = lengths['dashLength']
+    dot = morse.lengths['dotLength']
+    dash = morse.lengths['dashLength']
     client  = CLIENTS[0]
     dotdash = []
 
@@ -76,8 +91,8 @@ def interpret(interval):
 
     for d  in dotdash:
 
-        p = matchLength(d)  # p is the name of the length, 'dotLength'
-        correct = lengths.get(p) + 1e-6
+        p = morse.matchLength(d)  # p is the name of the length, 'dotLength'
+        correct = morse.lengths.get(p) + 1e-6
         if d < 0:
            guess = 'pause'
         else:
@@ -106,7 +121,7 @@ def interpret(interval):
                 morseChar += 'd'
 
     totalerr = (100.0*actual_length/ideal_length) - 100.0
-    char = morse2char(morseChar)
+    char = morse.morse2char(morseChar)
     result =   "%6s\t%s\t%4.0f" % (morseChar, char, totalerr)
     logmesg(syslog.LOG_INFO, result)
 
@@ -125,8 +140,8 @@ def analyzer():
 
     """
 
-    sleeptime = lengths['dotLength']/2
-    criteria =  3*lengths['letterPauseLength'] 
+    sleeptime = morse.lengths['dotLength']/4
+    criteria =  2*morse.lengths['letterPauseLength'] 
     while True:
         interval = (time.perf_counter() - last_press)
         if interval > criteria and len(signals) > 0:
@@ -311,6 +326,7 @@ if __name__ == '__main__':
    setup_gpio()
    CLIENTS = setup_clients()
    logmesg(syslog.LOG_INFO, 'clients ' + str(CLIENTS) )
+   morse.setActivecode('morseIMC')
 
    ana = daemonize(analyzer )  # figures out the letters
    gpl = daemonize(gpio_listener) # listens to local key

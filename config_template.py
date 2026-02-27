@@ -14,6 +14,7 @@ gpioInputGnd = False  # signal is grounding gpio pin, vs connecting to 3.3v
 
 wpm = 20
 MAX_WPM = 100
+codenamefile = '/usr/local/rpi_telegraph/keycode'
 
 randomAmount = 0.02 
 
