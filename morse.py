@@ -51,7 +51,7 @@ def setSpeed(wpm):
 
         amorse  =  (activecode['Name']  == 'americanMorse')
 
-        wpm = min(abs(wpm), MAX_WPM)
+        wpm = min(abs(int(wpm)), MAX_WPM)
         wordsPerMinute = wpm 
         dotLength = 60.0/(wordsPerMinute * 50) # based on PARIS
 

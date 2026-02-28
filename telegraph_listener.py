@@ -16,6 +16,8 @@ message_client_name = 'telegraph'
 msg_topic = 'telegraph'
 key_topic = 'key'
 
+message_id_db = set()
+
 control_topics = ['telegraph', 'key', 'speed', 'code' ] 
 
 # global message queues
@@ -64,7 +66,13 @@ def on_message(message_client, userdata, msg):
        m = msg.payload.decode('utf-8')   # the actual message
        topic = msg.topic
 
-       logmesg(syslog.LOG_DEBUG, f'message recieved  topic: {topic} message: {m}')
+       message_id = msg.mid
+       if message_id in message_id_db:  # throw away duplicate message
+           return
+       else:
+           message_id_db.add( message_id)
+
+       logmesg(syslog.LOG_DEBUG, f'message recieved  topic: {topic} message: {m} id {message_id}')
 
        if topic == key_topic:
               key_queue.put(m)
@@ -84,10 +92,6 @@ def on_message(message_client, userdata, msg):
             elif topic == 'code':
                logmesg(syslog.LOG_INFO, f'listener setting active code to {m}' )
                morse.setActivecode(m)
-
-               with open(codenamefile, 'w') as fle: # write file for key listener to know the new code
-                     fle.write(m)
-
                logmesg(syslog.LOG_INFO, f'listener set active code to {morse.getActiveCode()}' )
   
        else: 

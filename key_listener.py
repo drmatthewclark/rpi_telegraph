@@ -30,7 +30,6 @@ if gpioInputGnd:
 
 
 
-
 def reconnect():
     # connect if not connected
     global CLIENTS
@@ -40,15 +39,6 @@ def reconnect():
             logmesg(syslog.LOG_INFO, f'reconnecting {IP}' )
             client.connect_async(IP, keepalive=keepalive)
     return 0
-
-
-def checkCode():
-    # codenamefile is in config
-    if os.path.exists(codenamefile):
-        with open(codenamefile, 'r') as fle:
-             codename = fle.read()
-        morse.setActivecode(codename)
-        os.remove(codenamefile)
 
 
 def interpret(interval):
@@ -63,7 +53,6 @@ def interpret(interval):
     if len(CLIENTS) == 0: 
        return
 
-    checkCode()
     logmesg(syslog.LOG_INFO, '%6.4f interpret...' % (interval) )
     dot = morse.lengths['dotLength']
     dash = morse.lengths['dashLength']
@@ -84,7 +73,6 @@ def interpret(interval):
     morseChar = ''
 
     header =  ' time(ms) ideal(ms)  best fit          % error'
-    #publish(client, interpret_topic, header.encode('utf8'), qos)
 
     actual_length = 1e-6  # avoid divide by zero
     ideal_length  = 1e-6
@@ -102,7 +90,6 @@ def interpret(interval):
         ideal_length += correct
         actual_length += abs(d)   # length
         keymsg = '% 5d    %5d %15s err: % 6.0f%%' % (int(1000*d), int(1000*correct), guess, err  )
-        #publish(client, interpret_topic, guess.encode('utf8'), qos )
 
         if d > 0.0:
             if p == 'dotLength':
@@ -150,9 +137,13 @@ def analyzer():
         time.sleep(sleeptime)
 
 
+busyPublishing = False
 
 def publish(client, topic, status, qos=qos ):
+ global busyPublishing
+
  try:
+    busyPublishing = True
     ecode, count  = client.publish(topic, status, qos)
 
     if ecode != 0:
@@ -160,9 +151,11 @@ def publish(client, topic, status, qos=qos ):
         ecode, count  = client.publish(topic, status, qos)
         if ecode != 0:
             logmesg(syslog.LOG_ERR, f'key_press error: {ecode} {client}')
+
  except Exception as  err:
      logmesg(syslog.LOG_ERR, f'publish: {err}' )
-
+ finally:
+      busyPublishing = False
 
 def key_press(channel, status, now=0):
 
@@ -309,15 +302,43 @@ def daemonize( func, args=None ):
         worker.start()
         return worker
 
-# publish some stuff to keep awake
-def keep(sleeptime=10):
 
-  time.sleep(sleeptime)
-  while True:
-    for client in CLIENTS:
-        publish(client, 'k', '' )
 
-    time.sleep(sleeptime)
+def setup_listener():
+       logmesg(syslog.LOG_INFO, 'setup_listener started' )
+       message_client = mqtt.Client('key_listener')
+       message_client.on_message = on_listen_message
+       message_client.on_connect = on_listen_connect
+       message_client.on_disconnect = on_listen_disconnect
+       message_client.connect_async(IP, keepalive=keepalive)
+       message_client.loop_start()  # Start networking daemon
+
+def on_listen_connect(client, userdata, flags, rc):
+      topic = 'code'
+      qos = 0
+      logmesg(syslog.LOG_INFO, 'subscribing to listen to code, and speed' )
+      result, count = client.subscribe( ('code', qos) )
+      result, count = client.subscribe( ('speed', qos) )
+
+      if result != 0:
+              logmesg(syslog.LOG_ERR, f'error: {result} key_listener error subscribing' )
+              exit(7)
+
+
+def on_listen_message(message_client, userdata, msg):
+      
+       message = msg.payload.decode('utf-8')   # the actual message
+       topic = msg.topic
+       logmesg(syslog.LOG_INFO, f'on_listen_message recieved {topic} {message}' )
+       if topic == 'code':
+          morse.setActivecode(message)
+       if topic == 'speed':
+          morse.setSpeed(message) 
+
+def on_listen_disconnect(client, userdata, rs):
+      logmesg(syslog.LOG_INFO, f'on_listen_disconnect' )
+      setup_listener()
+
 
 
 if __name__ == '__main__':
@@ -327,10 +348,10 @@ if __name__ == '__main__':
    CLIENTS = setup_clients()
    logmesg(syslog.LOG_INFO, 'clients ' + str(CLIENTS) )
    morse.setActivecode('morseIMC')
+   setup_listener()
 
    ana = daemonize(analyzer )  # figures out the letters
    gpl = daemonize(gpio_listener) # listens to local key
-   keep = daemonize(keep(10))
 
    gpl.join()
    ana.join()
