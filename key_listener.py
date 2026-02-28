@@ -310,7 +310,7 @@ def setup_listener():
        message_client.on_message = on_listen_message
        message_client.on_connect = on_listen_connect
        message_client.on_disconnect = on_listen_disconnect
-       message_client.connect_async(IP, keepalive=keepalive)
+       message_client.connect_async('127.0.0.1', keepalive=keepalive)
        message_client.loop_start()  # Start networking daemon
 
 def on_listen_connect(client, userdata, flags, rc, properties):
