@@ -16,7 +16,6 @@ message_client_name = 'telegraph'
 msg_topic = 'telegraph'
 key_topic = 'key'
 
-message_id_db = set()
 
 control_topics = ['telegraph', 'key', 'speed', 'code' ] 
 
@@ -33,13 +32,11 @@ def process_messages(message_queue):
        try:
           while True:
               msg = message_queue.get(block=True)
-              logmesg(syslog.LOG_DEBUG, f'message processed: {msg}' )
               morse.message(msg)
        except Exception as err:
-           logmesg(syslog.LOG_ERR, f'process message {err}' )
+           logmesg(syslog.LOG_ERR, f'Error in process_messages: {err}' )
 
            
-       logmesg(syslog.LOG_INFO, 'process_messages ending' )
 
 def process_key(key_queue):
        """
@@ -65,14 +62,6 @@ def on_message(message_client, userdata, msg):
        """
        m = msg.payload.decode('utf-8')   # the actual message
        topic = msg.topic
-
-       message_id = msg.mid
-       if message_id in message_id_db:  # throw away duplicate message
-           return
-       else:
-           message_id_db.add( message_id)
-
-       logmesg(syslog.LOG_DEBUG, f'message recieved  topic: {topic} message: {m} id {message_id}')
 
        if topic == key_topic:
               key_queue.put(m)
@@ -110,15 +99,14 @@ def daemonize( func, args ):
 
 
 
-def on_connect(client, userdata, flags, rc):
+def on_connect(client, userdata, flags, rc, properties):
        """
        called on connection to the server
        subcribe to the server on connections.
        """
-       #result, count = client.subscribe( [(msg_topic, qos), (key_topic, qos), (control_topics, qos)] )
-
+       suboptions = mqtt.SubscribeOptions(qos = qos )
        for topic in control_topics:
-          result, count = client.subscribe( (topic, qos) )
+          result, count = client.subscribe( topic=topic, options = suboptions )
 
           if result != 0:
               logmesg(syslog.LOG_ERR, f'error: {result} telegraph_listener error subscribing' )
@@ -128,7 +116,7 @@ def on_connect(client, userdata, flags, rc):
 
 
 
-def on_disconnect(client, userdata, rs):
+def on_disconnect(client, userdata, rs, properties):
 
     """
     called when the server disconnects
@@ -149,11 +137,12 @@ def setup():
 
        logmesg(syslog.LOG_INFO, 'telegraph listener starting')
        morse.setup()
+       morse.setSpeed(wpm) # set to config file value
 
        msq =  daemonize(process_messages, (message_queue,) )
        keyq = daemonize(process_key, (key_queue,) )
 
-       message_client = mqtt.Client(message_client_name)
+       message_client = mqtt.Client(protocol=mqtt.MQTTv5, client_id=message_client_name)
        message_client.user_data_set(IP) # store ip
        message_client.on_message = on_message 
        message_client.on_connect = on_connect

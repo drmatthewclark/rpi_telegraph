@@ -56,7 +56,7 @@ def setSpeed(wpm):
         dotLength = 60.0/(wordsPerMinute * 50) # based on PARIS
 
         if amorse:
-            dashLength = 2* dotLength
+            dashLength = 2 * dotLength
         else:
             dashLength = 3 * dotLength
 
