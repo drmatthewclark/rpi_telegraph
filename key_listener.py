@@ -173,7 +173,7 @@ def key_press(channel, status, now=0):
            publish(client, topic, status, qos)
 
 
-def on_connect(client, userdata, flags, rc):
+def on_connect(client, userdata, flags, rc, properties):
      """
      called on connection to mqtt server 
      """
@@ -208,7 +208,7 @@ def setup_clients():
     for IP in IPS:  # list of configured IP addresses to broadcast to
         logmesg(syslog.LOG_INFO, f'setup_clients: connecting to client {IP}' )
         try:
-            client = mqtt.Client(f'{topic}{IP}' )
+            client = mqtt.Client(protocol=mqtt.MQTTv5, client_id=f'{topic}{IP}' )
             client.user_data_set(IP)
             client.on_connect = on_connect
             client.on_disconnect = on_disconnect
@@ -306,19 +306,20 @@ def daemonize( func, args=None ):
 
 def setup_listener():
        logmesg(syslog.LOG_INFO, 'setup_listener started' )
-       message_client = mqtt.Client('key_listener')
+       message_client = mqtt.Client(protocol=mqtt.MQTTv5, client_id='key_listener')
        message_client.on_message = on_listen_message
        message_client.on_connect = on_listen_connect
        message_client.on_disconnect = on_listen_disconnect
        message_client.connect_async(IP, keepalive=keepalive)
        message_client.loop_start()  # Start networking daemon
 
-def on_listen_connect(client, userdata, flags, rc):
+def on_listen_connect(client, userdata, flags, rc, properties):
       topic = 'code'
       qos = 0
       logmesg(syslog.LOG_INFO, 'subscribing to listen to code, and speed' )
-      result, count = client.subscribe( ('code', qos) )
-      result, count = client.subscribe( ('speed', qos) )
+      suboptions = mqtt.SubscribeOptions( qos = 0)
+      result, count = client.subscribe( topic='code' , options = suboptions )
+      result, count = client.subscribe( topic='speed', options = suboptions  )
 
       if result != 0:
               logmesg(syslog.LOG_ERR, f'error: {result} key_listener error subscribing' )
