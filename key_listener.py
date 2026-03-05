@@ -229,7 +229,6 @@ def setup_clients():
             client.user_data_set(IP)
             client.on_connect = on_connect
             client.on_disconnect = on_disconnect
-            #client.connect(IP, keepalive=keepalive )  # the keepalive is actually the timeout time
             client.connect( IP )
             clients.append( client )
             logmesg(syslog.LOG_INFO, f'setup_clients: client {IP} connected {client} id {client_id}' )
@@ -316,7 +315,6 @@ def setup_listener():
        message_client.on_message = on_listen_message
        message_client.on_connect = on_listen_connect
        message_client.on_disconnect = on_listen_disconnect
-       #message_client.connect_async('127.0.0.1', keepalive=keepalive)
        message_client.connect_async( '127.0.0.1' )
        message_client.loop_start()  # Start networking daemon
 
