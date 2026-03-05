@@ -10,15 +10,16 @@ from threading import Thread
 from config import *
 import morse
 import re
-
+import random
 
 # topic to broadcast for key press/release 
 topic = 'key'      # key press
 interpret_topic  = 'interpret'
-signals = []
+signals = []    # stores tuples of (time, event(up/down) )  to evaluate
+
 
 last_press = time.perf_counter()
-keepalive=30
+
 
 UP = GPIO.RISING
 DOWN = GPIO.FALLING
@@ -37,9 +38,19 @@ def reconnect():
         if not client.is_connected():
             IP = client._host
             logmesg(syslog.LOG_INFO, f'reconnecting {IP}' )
-            client.connect_async(IP, keepalive=keepalive)
+            client.connect_async(IP)
     return 0
 
+
+
+def showsignals():
+    result = ''
+    start_time = signals[0][0]
+    for (time, event)  in signals:
+        time  -= start_time
+        result += f'{time:0.3f}  {event}\n'
+
+    return result
 
 def interpret(interval):
     """ 
@@ -54,22 +65,25 @@ def interpret(interval):
        return
 
     logmesg(syslog.LOG_INFO, '%6.4f interpret...' % (interval) )
+    #logmesg(syslog.LOG_DEBUG, showsignals() )
     dot = morse.lengths['dotLength']
     dash = morse.lengths['dashLength']
     client  = CLIENTS[0]
     dotdash = []
-
+    
     for i, (t, s) in enumerate(signals):
         if i > 0:
-            (lt, ls ) = signals[i-1]
-            interval = t - lt
+            (lt, ls ) = signals[i-1]  # last signal
+            interval = t - lt  # time between up/down events
+
             if s == 0 and ls == 1:  # key down interval
                 dotdash.append(interval)
-            elif s == 1 and ls == 0:  # pause interval
+            elif s == 1 and ls == 0:  # key up interval
                 dotdash.append(-interval)
             else:
-                logmesg(syslog.LOG_ERR, 'interpret: %f %d,  %f %d' %( t,s, lt, ls ) )
+                logmesg(syslog.LOG_ERR, f'interpret long gap: {interval} from {ls} to {s}')
 
+    #logmesg(syslog.LOG_DEBUG, f'dotdash {dotdash}' )
     morseChar = ''
 
     header =  ' time(ms) ideal(ms)  best fit          % error'
@@ -127,35 +141,37 @@ def analyzer():
 
     """
 
-    sleeptime = morse.lengths['dotLength']/4
     criteria =  2*morse.lengths['letterPauseLength'] 
+    sleeptime = morse.lengths['dotLength']/4
+
+    # loop awaiting signals
     while True:
-        interval = (time.perf_counter() - last_press)
-        if interval > criteria and len(signals) > 0:
+        interval = time.perf_counter() - last_press
+        if interval > criteria and len(signals) > 1 and len(signals) % 2 == 0:  # >1 cause need and up and down
             interpret(interval)
 
-        time.sleep(sleeptime)
+        time.sleep(sleeptime) # wait for data 
 
-
-busyPublishing = False
 
 def publish(client, topic, status, qos=qos ):
- global busyPublishing
-
  try:
-    busyPublishing = True
+    tries = 0
     ecode, count  = client.publish(topic, status, qos)
 
     if ecode != 0:
-        client.reconnect()
+        logmesg(syslog.LOG_ERR, f'publish reports: {ecode} {count}')
+        while client.reconnect() != 0:
+             tries += 1
+             if tries > 100: break
+        
         ecode, count  = client.publish(topic, status, qos)
+        logmesg(syslog.LOG_ERR, f'publish retry result: {ecode} {count} tries {tries} ')
         if ecode != 0:
-            logmesg(syslog.LOG_ERR, f'key_press error: {ecode} {client}')
+            logmesg(syslog.LOG_ERR, f'publish error after recount: {ecode} {count}')
 
  except Exception as  err:
      logmesg(syslog.LOG_ERR, f'publish: {err}' )
- finally:
-      busyPublishing = False
+
 
 def key_press(channel, status, now=0):
 
@@ -168,7 +184,7 @@ def key_press(channel, status, now=0):
             status = 1 - status
 
         signals.append( (now, status ) )
-
+ 
         for client in CLIENTS:
            publish(client, topic, status, qos)
 
@@ -185,12 +201,12 @@ def on_connect(client, userdata, flags, rc, properties):
 
 
 
-def on_disconnect(client, userdata, rc):
+def on_disconnect(client, userdata, reason, properties):
     """
     called on disconnect
     """
 
-    logmesg(syslog.LOG_INFO, f'on_disconnect: {client} {rc} disconnected')
+    logmesg(syslog.LOG_INFO, f'on_disconnect: {client} {reason} disconnected')
  
     if client.reconnect() == 0:
         logmesg(syslog.LOG_INFO, f'on_disconnect: reconnected {client}' )
@@ -207,14 +223,16 @@ def setup_clients():
 
     for IP in IPS:  # list of configured IP addresses to broadcast to
         logmesg(syslog.LOG_INFO, f'setup_clients: connecting to client {IP}' )
-        try:
-            client = mqtt.Client(protocol=mqtt.MQTTv5, client_id=f'{topic}{IP}' )
+        try: 
+            client_id = f'{topic}{IP}{random.random()}'
+            client = mqtt.Client(protocol=mqtt.MQTTv5, client_id=client_id )
             client.user_data_set(IP)
             client.on_connect = on_connect
             client.on_disconnect = on_disconnect
-            client.connect(IP, keepalive=keepalive)
+            #client.connect(IP, keepalive=keepalive )  # the keepalive is actually the timeout time
+            client.connect( IP )
             clients.append( client )
-            logmesg(syslog.LOG_INFO, f'setup_clients: client {IP} connected {client}' )
+            logmesg(syslog.LOG_INFO, f'setup_clients: client {IP} connected {client} id {client_id}' )
 
         except Exception as exp:
             logmesg(syslog.LOG_ERR, f'setup_clients: error connecting to {IP} err: {exp}' )
@@ -241,19 +259,6 @@ def setup_gpio():
            logmesg(syslog.LOG_ERR, f'setup_gpio setup: {err}')
 
 
-def pin_change(channel):
-    # used with 
-    # #GPIO.add_event_detect(gpioInputPin, GPIO.BOTH, callback=pin_change )
-    # but that is not as efficient as a loop unfortunately
-
-    global last_press
-    last_press =  time.perf_counter()
-    level = GPIO.input(channel)
-    key_press(channel, level, now=last_press )
-
-
-
-
 def gpio_listener():
     """ 
     main listening loop for key presses
@@ -262,7 +267,7 @@ def gpio_listener():
     setup_gpio() 
     wait = 0.005
     waiting = 0
-    fast_wait = 0.0001 # increase accuracy during messages
+    fast_wait = 0.001 # increase accuracy during messages
     slow_wait = 0.01   # less accurate timing between messages
 
     while True:
@@ -279,15 +284,16 @@ def gpio_listener():
         last_press =  time.perf_counter()
         key_press(gpioInputPin, not level, now=last_press )
          
-        if wait == slow_wait:  # skeeps first message after waiting 
-            key_press(gpioInputPin, not level, now=last_press )
+        #if wait == slow_wait:  # skeeps first message after waiting 
+        #    key_press(gpioInputPin, not level, now=last_press )
 
         wait = fast_wait
         time.sleep(wait)
         waiting = 0
       except Exception as err:
           pass
-          #logmesg(syslog.LOG_ERR, f'gpio_listener {err}')
+          logmesg(syslog.LOG_ERR, f'gpio_listener {err}')
+     
 
     logmesg(syslog.LOG_ERR, 'gpio_listener loop ended')
     
@@ -310,7 +316,8 @@ def setup_listener():
        message_client.on_message = on_listen_message
        message_client.on_connect = on_listen_connect
        message_client.on_disconnect = on_listen_disconnect
-       message_client.connect_async('127.0.0.1', keepalive=keepalive)
+       #message_client.connect_async('127.0.0.1', keepalive=keepalive)
+       message_client.connect_async( '127.0.0.1' )
        message_client.loop_start()  # Start networking daemon
 
 def on_listen_connect(client, userdata, flags, rc, properties):
@@ -336,7 +343,7 @@ def on_listen_message(message_client, userdata, msg):
        if topic == 'speed':
           morse.setSpeed(message) 
 
-def on_listen_disconnect(client, userdata, rs):
+def on_listen_disconnect(client, userdata, reason, properties):
       logmesg(syslog.LOG_INFO, f'on_listen_disconnect' )
       setup_listener()
 
@@ -349,6 +356,7 @@ if __name__ == '__main__':
    CLIENTS = setup_clients()
    logmesg(syslog.LOG_INFO, 'clients ' + str(CLIENTS) )
    morse.setActivecode('morseIMC')
+
    setup_listener()
 
    ana = daemonize(analyzer )  # figures out the letters

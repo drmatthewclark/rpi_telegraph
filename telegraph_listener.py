@@ -147,7 +147,7 @@ def setup():
        message_client.on_message = on_message 
        message_client.on_connect = on_connect
        message_client.on_disconnect = on_disconnect
-       message_client.connect_async(IP, keepalive=keepalive)
+       message_client.connect(IP, keepalive=keepalive)
        message_client.loop_start()  # Start networking daemon
 
 
