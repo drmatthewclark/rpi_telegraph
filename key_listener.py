@@ -141,7 +141,7 @@ def analyzer():
 
     """
 
-    criteria =  2*morse.lengths['letterPauseLength'] 
+    criteria =  morse.lengths['letterPauseLength'] 
     sleeptime = morse.lengths['dotLength']/4
     cycles = 0
     ping_interval = int(sleeptime * 100000 )
@@ -149,19 +149,21 @@ def analyzer():
     # loop awaiting signals
     while True:
         cycles += 1
-        num_signals = len(signals)
-        interval = time.perf_counter() - last_press
-
-        if interval > criteria and num_signals > 1 and num_signals % 2 == 0:  # >1 cause need and up and down
-            interpret(interval)
-
-        elif cycles % ping_interval == 0: 
-          cycles = 0 # prevent getting too large after a long time
-          for client in CLIENTS:
-              publish(client, 'x', 1)
-
-        time.sleep(sleeptime) # wait for data 
-         
+        try:
+            num_signals = len(signals)
+            interval = time.perf_counter() - last_press
+    
+            if interval > criteria and num_signals > 1 and num_signals % 2 == 0:  # >1 cause need and up and down
+                interpret(interval)
+    
+            elif cycles % ping_interval == 0: 
+              cycles = 0 # prevent getting too large after a long time
+              for client in CLIENTS:
+                  publish(client, 'x', 1)
+        except:
+            pass
+        finally:
+            time.sleep(sleeptime) # wait for data 
 
 def publish(client, topic, status, qos=qos ):
  try:
