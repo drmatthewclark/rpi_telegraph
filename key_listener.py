@@ -165,16 +165,24 @@ def analyzer():
         finally:
             time.sleep(sleeptime) # wait for data 
 
+
+#
+# wrapper for mqtt publish
+#
 def publish(client, topic, status, qos=qos ):
  try:
-    tries = 0
+    reconnect_tries = 0
+    max_tries = 10
+
     ecode, count  = client.publish(topic, status, qos)
 
     if ecode != 0:
-        logmesg(syslog.LOG_ERR, f'publish reports: {ecode} {count}')
+        logmesg(syslog.LOG_ERR, f'publish reports failed: {ecode} {count}')
         while client.reconnect() != 0:
-             tries += 1
-             if tries > 100: break
+             reconnect_tries += 1
+             if reconnect_tries > max_tries 
+                  logmesg(syslog.LOG_ERR, f'publish reconnect failed after {max_tries} attempts')
+                  break
         
         ecode, count  = client.publish(topic, status, qos)
         logmesg(syslog.LOG_ERR, f'publish retry result: {ecode} {count} tries {tries} ')
@@ -199,6 +207,7 @@ def key_press(channel, status, now=0):
  
         for client in CLIENTS:
            publish(client, topic, status, qos)
+
 
 
 def on_connect(client, userdata, flags, rc, properties):
@@ -227,6 +236,24 @@ def on_disconnect(client, userdata, reason, properties):
 
 
 
+
+def setup_client(IP):
+        client = None
+        logmesg(syslog.LOG_INFO, f'setup_client: client {IP} try connect{client}' )
+        try: 
+            client_id = f'{IP}{random.random()}'
+            client = mqtt.Client(protocol=mqtt.MQTTv5, client_id=client_id )
+            client.user_data_set(IP)
+            client.on_connect = on_connect
+            client.on_disconnect = on_disconnect
+            client.connect( IP )
+            logmesg(syslog.LOG_INFO, f'setup_client: client {IP} connected {client} id {client_id}' )
+            
+        except Exception as exp:
+            logmesg(syslog.LOG_ERR, f'setup_client: error connecting to {IP} err: {exp}' )
+        finally:
+            return client
+
 def setup_clients():
     """
     set up the connections
@@ -234,22 +261,18 @@ def setup_clients():
     clients = []
 
     for IP in IPS:  # list of configured IP addresses to broadcast to
-        logmesg(syslog.LOG_INFO, f'setup_clients: connecting to client {IP}' )
-        try: 
-            client_id = f'{topic}{IP}{random.random()}'
-            client = mqtt.Client(protocol=mqtt.MQTTv5, client_id=client_id )
-            client.user_data_set(IP)
-            client.on_connect = on_connect
-            client.on_disconnect = on_disconnect
-            client.connect( IP )
-            clients.append( client )
-            logmesg(syslog.LOG_INFO, f'setup_clients: client {IP} connected {client} id {client_id}' )
+        client = setup_client( IP )  
+        if client is None:  # if none, make a second try
+            sleep(10)
+            client = setup_client( IP )
+            if not client is None:
+                 clients.append( client )
+        else:
+            clients.append( client ) 
 
-        except Exception as exp:
-            logmesg(syslog.LOG_ERR, f'setup_clients: error connecting to {IP} err: {exp}' )
- 
     return clients
-    
+   
+ 
  
 def setup_gpio():
         try:
