@@ -180,7 +180,7 @@ def publish(client, topic, status, qos=qos ):
         logmesg(syslog.LOG_ERR, f'publish reports failed: {ecode} {count}')
         while client.reconnect() != 0:
              reconnect_tries += 1
-             if reconnect_tries > max_tries 
+             if reconnect_tries > max_tries:
                   logmesg(syslog.LOG_ERR, f'publish reconnect failed after {max_tries} attempts')
                   break
         
