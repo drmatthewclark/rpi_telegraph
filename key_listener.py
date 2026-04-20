@@ -11,15 +11,12 @@ from config import *
 import morse
 import re
 import random
+from threading import Event
 
 # topic to broadcast for key press/release 
 topic = 'key'      # key press
 interpret_topic  = 'interpret'
 signals = []    # stores tuples of (time, event(up/down) )  to evaluate
-
-
-last_press = time.perf_counter()
-
 
 UP = GPIO.RISING
 DOWN = GPIO.FALLING
@@ -28,7 +25,6 @@ DOWN = GPIO.FALLING
 if gpioInputGnd:
     UP = GPIO.FALLING
     DOWN = GPIO.RISING
-
 
 
 def reconnect():
@@ -128,21 +124,19 @@ def interpret(interval):
 
     if not char is None:
        for client in CLIENTS:
-           publish(client, interpret_topic, char.encode('utf8'), qos)
+           Thread(target=publish, args=(client, interpret_topic, char.encode('utf8'), qos), daemon=True ).start()
 
     signals.clear()
 
 
 
 def analyzer():
-    """
 
+    """
     analyze the data collected so far
-
     """
-
     criteria =  morse.lengths['letterPauseLength'] 
-    sleeptime = morse.lengths['dotLength']/4
+    sleeptime = morse.lengths['dotLength']/2
     cycles = 0
     ping_interval = int(sleeptime * 100000 )
 
@@ -151,15 +145,15 @@ def analyzer():
         cycles += 1
         try:
             num_signals = len(signals)
-            interval = time.perf_counter() - last_press
+            interval = time.perf_counter() - signals[-1][0]
     
-            if interval > criteria and num_signals > 1 and num_signals % 2 == 0:  # >1 cause need and up and down
+            if interval > criteria and num_signals % 2 == 0:  # >1 cause need and up and down
                 interpret(interval)
     
             elif cycles % ping_interval == 0: 
               cycles = 0 # prevent getting too large after a long time
               for client in CLIENTS:
-                  publish(client, 'x', 1)
+                  Thread(target=publish, args=(client, 'x', 1), daemon=True ).start()
         except:
             pass
         finally:
@@ -180,6 +174,7 @@ def publish(client, topic, status, qos=qos ):
         logmesg(syslog.LOG_ERR, f'publish reports failed: {ecode} {count}')
         while client.reconnect() != 0:
              reconnect_tries += 1
+             time.sleep(0.5)
              if reconnect_tries > max_tries:
                   logmesg(syslog.LOG_ERR, f'publish reconnect failed after {max_tries} attempts')
                   break
@@ -191,22 +186,6 @@ def publish(client, topic, status, qos=qos ):
 
  except Exception as  err:
      logmesg(syslog.LOG_ERR, f'publish: {err}' )
-
-
-def key_press(channel, status, now=0):
-
-        """
-         called when the key is pressed and when released
-	"""
-        status = int(status)
-        # telegraph key pressed
-        if gpioInputGnd:   # if grounding gpio pin for signal
-            status = 1 - status
-
-        signals.append( (now, status ) )
- 
-        for client in CLIENTS:
-           publish(client, topic, status, qos)
 
 
 
@@ -263,7 +242,7 @@ def setup_clients():
     for IP in IPS:  # list of configured IP addresses to broadcast to
         client = setup_client( IP )  
         if client is None:  # if none, make a second try
-            sleep(10)
+            time.sleep(10)
             client = setup_client( IP )
             if not client is None:
                  clients.append( client )
@@ -277,7 +256,12 @@ def setup_clients():
 def setup_gpio():
         try:
            GPIO.setmode(gpioMode) 
+
+           GPIO.cleanup(gpioInputPin) 
+           GPIO.setmode(gpioMode) 
+           GPIO.setwarnings(False)
            logmesg(syslog.LOG_INFO, f'setup_gpio success')
+
         except Exception as err:
            logmesg(syslog.LOG_ERR, f'setup_gpio setmode: {err}')
 
@@ -287,51 +271,35 @@ def setup_gpio():
         else:
             pud = GPIO.PUD_DOWN
             last_status = 0
-        try: 
-          GPIO.setup(gpioInputPin, GPIO.IN, pull_up_down = pud)
+
+        try:
+          GPIO.setup(gpioInputPin, GPIO.IN, pull_up_down = pud )
         except Exception as err:
            logmesg(syslog.LOG_ERR, f'setup_gpio setup: {err}')
+
+
+def signal(arg):
+    # called on key press or release 
+    now =  time.perf_counter()
+    level = int( GPIO.input(gpioInputPin) )
+
+    if gpioInputGnd:   # if grounding gpio pin for signal
+         level = 1 - level 
+
+    signals.append( (now, level ) )
+ 
+    for client in CLIENTS:
+         Thread(target=publish, args=(client, topic, level, qos), daemon=True ).start()
 
 
 def gpio_listener():
     """ 
     main listening loop for key presses
     """
-    global last_press
     setup_gpio() 
-    wait = 0.005
-    waiting = 0
-    fast_wait = 0.001 # increase accuracy during messages
-    slow_wait = 0.01   # less accurate timing between messages
+    GPIO.add_event_detect(gpioInputPin, GPIO.BOTH, signal, 1 )
+    Event().wait()  # wait here forever
 
-    while True:
-      try:
-        level = GPIO.input(gpioInputPin)
-        # innner loop waiting for in change
-        while GPIO.input(gpioInputPin) == level:
-            time.sleep(wait)
-            waiting += wait
-            if waiting > 10:  # swich to slower loop after 10 sec inactivity
-                 wait = slow_wait
-
-        # 'not level'  because it changed
-        last_press =  time.perf_counter()
-        key_press(gpioInputPin, not level, now=last_press )
-         
-        #if wait == slow_wait:  # skeeps first message after waiting 
-        #    key_press(gpioInputPin, not level, now=last_press )
-
-        wait = fast_wait
-        time.sleep(wait)
-        waiting = 0
-      except Exception as err:
-          pass
-          logmesg(syslog.LOG_ERR, f'gpio_listener {err}')
-     
-
-    logmesg(syslog.LOG_ERR, 'gpio_listener loop ended')
-    
-   
 
 def daemonize( func, args=None ):
         if args is None:
@@ -388,12 +356,14 @@ if __name__ == '__main__':
    setup_gpio()
    CLIENTS = setup_clients()
    logmesg(syslog.LOG_INFO, 'clients ' + str(CLIENTS) )
-   morse.setActivecode('morseIMC')
+   morse.setActivecode('morseIMC')  # default code
 
    setup_listener()
 
-   ana = daemonize(analyzer )  # figures out the letters
-   gpl = daemonize(gpio_listener) # listens to local key
+   ana = daemonize( analyzer )  # figures out the letters
+   gpio_listener()  # listens to local key waits here forever
+
+   logmesg(syslog.LOG_ERR, 'gpio_listener ended unexpectedly' )
 
    gpl.join()
    ana.join()
