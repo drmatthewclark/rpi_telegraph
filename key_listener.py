@@ -136,7 +136,7 @@ def analyzer():
     analyze the data collected so far
     """
     criteria =  morse.lengths['letterPauseLength'] 
-    sleeptime = morse.lengths['dashLength']
+    sleeptime = morse.lengths['dotLength']/2
     ping_interval = 15
     last_ping = time.perf_counter()
 
