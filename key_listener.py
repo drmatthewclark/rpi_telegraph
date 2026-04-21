@@ -180,7 +180,7 @@ def publish(client, topic, status, qos=qos ):
                   break
         
         ecode, count  = client.publish(topic, status, qos)
-        logmesg(syslog.LOG_ERR, f'publish retry result: {ecode} {count} tries {tries} ')
+        logmesg(syslog.LOG_ERR, f'publish retry result: {ecode} {count} tries {reconnect_tries} ')
         if ecode != 0:
             logmesg(syslog.LOG_ERR, f'publish error after recount: {ecode} {count}')
 
