@@ -124,7 +124,7 @@ def on_disconnect(client, userdata, rs, properties):
     host = client._host
     logmesg(syslog.LOG_ERR, f'on_disconnect: {client} {rs} {host}  disconnected')
 
-    ret = client.connect(host=host, port=TPORT)
+    ret = client.connect( host=host )
 
     if ret == 0:
         logmesg(syslog.LOG_INFO, f'on_disconnect: reconnected {host}')
@@ -147,7 +147,7 @@ def setup():
        message_client.on_message = on_message 
        message_client.on_connect = on_connect
        message_client.on_disconnect = on_disconnect
-       message_client.connect(host=IP, port=TPORT)
+       message_client.connect( host=IP )
        message_client.loop_start()  # Start networking daemon
 
 
