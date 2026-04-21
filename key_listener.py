@@ -146,10 +146,11 @@ def analyzer():
             now = time.perf_counter()
             num_signals = len(signals)
 
-            if num_signals == 0 and (now - last_ping)  > ping_interval:
-              last_ping = now
-              for client in CLIENTS:
-                  Thread(target=publish, args=(client, 'ping', 1), daemon=True ).start()
+            if num_signals == 0 :
+              if (now - last_ping)  > ping_interval:
+                 last_ping = now
+                 for client in CLIENTS:
+                    Thread(target=publish, args=(client, 'ping', 1), daemon=True ).start()
 
               continue
 
