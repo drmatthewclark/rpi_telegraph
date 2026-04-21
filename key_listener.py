@@ -137,24 +137,29 @@ def analyzer():
     """
     criteria =  morse.lengths['letterPauseLength'] 
     sleeptime = morse.lengths['dotLength']/2
-    cycles = 0
-    ping_interval = int(sleeptime * 100000 )
+    ping_interval = 15
+    last_ping = time.perf_counter()
 
     # loop awaiting signals
     while True:
-        cycles += 1
         try:
+            now = time.perf_counter()
             num_signals = len(signals)
-            interval = time.perf_counter() - signals[-1][0]
+
+            if num_signals == 0 and (now - last_ping)  > ping_interval:
+              last_ping = now
+              for client in CLIENTS:
+                  Thread(target=publish, args=(client, 'ping', 1), daemon=True ).start()
+
+              continue
+
+            interval = now - signals[-1][0]
     
             if interval > criteria and num_signals % 2 == 0:  # >1 cause need and up and down
                 interpret(interval)
-    
-            elif cycles % ping_interval == 0: 
-              cycles = 0 # prevent getting too large after a long time
-              for client in CLIENTS:
-                  Thread(target=publish, args=(client, 'x', 1), daemon=True ).start()
-        except:
+
+        except Exception as err:
+            logmesg(syslog.LOG_ERR, f'analyzer error {err}' )
             pass
         finally:
             time.sleep(sleeptime) # wait for data 
@@ -216,7 +221,7 @@ def on_disconnect(client, userdata, reason, properties):
 
 
 
-def setup_client(IP):
+def setup_client(IP, PORT):
         client = None
         logmesg(syslog.LOG_INFO, f'setup_client: client {IP} try connect{client}' )
         try: 
@@ -225,7 +230,7 @@ def setup_client(IP):
             client.user_data_set(IP)
             client.on_connect = on_connect
             client.on_disconnect = on_disconnect
-            client.connect( IP )
+            client.connect( host=IP, port=PORT )
             logmesg(syslog.LOG_INFO, f'setup_client: client {IP} connected {client} id {client_id}' )
             
         except Exception as exp:
@@ -239,11 +244,11 @@ def setup_clients():
     """
     clients = []
 
-    for IP in IPS:  # list of configured IP addresses to broadcast to
-        client = setup_client( IP )  
+    for IP,PORT in IPS:  # list of configured IP addresses to broadcast to
+        client = setup_client( IP, PORT )  
         if client is None:  # if none, make a second try
             time.sleep(10)
-            client = setup_client( IP )
+            client = setup_client( IP, PORT )
             if not client is None:
                  clients.append( client )
         else:
