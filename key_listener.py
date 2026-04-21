@@ -136,7 +136,7 @@ def analyzer():
     analyze the data collected so far
     """
     criteria =  morse.lengths['letterPauseLength'] 
-    sleeptime = morse.lengths['dotLength']/2
+    sleeptime = morse.lengths['dashLength']
     ping_interval = 15
     last_ping = time.perf_counter()
 
@@ -324,8 +324,9 @@ def setup_listener():
        message_client.on_message = on_listen_message
        message_client.on_connect = on_listen_connect
        message_client.on_disconnect = on_listen_disconnect
-       message_client.connect_async( '127.0.0.1' )
+       message_client.connect_async( IP )
        message_client.loop_start()  # Start networking daemon
+
 
 def on_listen_connect(client, userdata, flags, rc, properties):
       topic = 'code'
