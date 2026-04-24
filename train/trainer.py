@@ -10,14 +10,15 @@ import time as time
 import random
 import sys
 import pickle
+import copy
 
 qos = 0
 historyfile = 'errors.pickle'
-
+max_delay = 10
 topic = 'telegraph'
 host = 'localhost'
-wordlist = []
-errors = {}
+weights = {}
+
 gap = 60
 
 def send(message):
@@ -26,77 +27,89 @@ def send(message):
         ecode, count  = client.publish(topic, message.encode('utf8'), qos)
 
 def readwords(files):
+        w = readhist()
         for wordfile in files[1:]:
             with open(wordfile, 'r') as file:
                 for word in file:
-                   wordlist.append(word.strip())
+                   word = word.strip()
+                   if word in w:
+                       weights[word] = min(max_delay, w[word] )
+                   else:
+                       print(f'{word} not in weights' )
+                       weights[word.strip()] = max_delay
+        analyze(weights)
 
 
-def savehist():
+def savehist(weights):
         with open(historyfile, 'wb') as f:
-                pickle.dump(errors, f)
+                pickle.dump(weights, f)
 
 def readhist():
-        global errors
         try:
-                errors = pickle.load(historyfile)
-                print('errors', errors )
-        except:
-                pass
+           with open(historyfile, 'rb') as file:
+               wg = pickle.load(file)
+               return wg
+
+        except Exception as err:
+           print(f'readhist: {err}' )
+
+
+
+def pickword(weights):
+        return random.choices(list(weights.keys()), weights=list(weights.values()), k=1)[0]
+
+def analyze(weights):
+   sort = dict(sorted(weights.items(), key=lambda item: item[1]))
+   print(f'word\tdelay' )
+   for item in sort:
+      print(f'{item}\t{sort[item]:5.2f}' )
+
+
+def reweight(new_delay, old_delay):
+   delay = old_delay - (old_delay - new_delay)/3   #exponential decay
+   return delay
 
 def train(files):
 
         count = 0
         readwords(files)
-        print('read', len(wordlist), 'words' )
-        total = 0.0
+        print('read', len(weights), 'words' )
 
         while True:
                 count += 1
-                nextword = random.choice(wordlist)
+                nextword = pickword(weights)
                 send(nextword)
-                start = time.time()		
-                user = input('\nword: ')
-                if user == '@':
-                        savehist()
+                start = time.perf_counter()
+                user = input('\nword: ').strip()   # wait for input
+
+                if user == '@' or user.lower() == 'stop' :     #end
+                        savehist(weights)
+                        analyze( weights )
                         exit(0)
 
-                while user == '#':
+                elif user == '!':      # get stats
+                        analyze(weights)
+                        next
+
+                while user == '#':   # ask for repeat
                         send(nextword) 
                         user = input('word: ')
 
-                delay = time.time() - start
-                total += delay
-                average = total/count
+
+                new_delay = min(max_delay, time.perf_counter() - start ) # max in case 
+                old_delay = weights[nextword]
+                delay = reweight(new_delay, old_delay)
 
                 if user.upper() == nextword.upper():
-
-                        print(f'CORRECT time {delay:5.1f}s avg {average:5.1f}s' )
-                        if 'correct' not in errors:
-                                errors['correct'] = 0
-
-                        errors['correct'] += 1
-
-                        if nextword in errors:
-                                errors[nextword] -= 1
-                                if errors[nextword] == 0:
-                                        del errors[nextword]
+                        print(f'CORRECT time {new_delay:5.2f}s  avg {delay:5.2f}s' )
+                        weights[nextword] = delay
                 else:
                         print(f'WRONG word was {nextword}' )
-                        if nextword in errors:
-                                errors[nextword] += 1
-                        else:
-                                errors[nextword] = 1
-
-                print(errors)
-                savehist()
-
-                if len(errors) > 5 and count % 50 == 0:
-                        for e in errors:
-                                print('char', e )
-                                send(e)
-                                time.sleep(2)
+                        #weights[nextword] = reweight( max_delay, old_delay )
+                        weights[nextword] = max_delay
+   
+                savehist(weights)
                 time.sleep(2)
+           
 
-readhist()
 train(sys.argv)
