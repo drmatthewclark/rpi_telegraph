@@ -22,7 +22,7 @@ weights = {}
 gap = 60
 
 def send(message):
-        client = mqtt.Client('trainer')
+        client = mqtt.Client(protocol=mqtt.MQTTv5, 'trainer')
         res = client.connect(host)
         ecode, count  = client.publish(topic, message.encode('utf8'), qos)
 
