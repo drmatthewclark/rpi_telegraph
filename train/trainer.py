@@ -45,6 +45,7 @@ def savehist(weights):
                 pickle.dump(weights, f)
 
 def readhist():
+        
         try:
            with open(historyfile, 'rb') as file:
                wg = pickle.load(file)
@@ -52,6 +53,8 @@ def readhist():
 
         except Exception as err:
            print(f'readhist: {err}' )
+
+        return {}
 
 
 
