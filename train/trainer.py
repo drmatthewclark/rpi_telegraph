@@ -59,7 +59,8 @@ def readhist():
 
 
 def pickword(weights):
-        return random.choices(list(weights.keys()), weights=list(weights.values()), k=1)[0]
+        w = [ w*w for w in weights.values() ]
+        return random.choices(list(weights.keys()), weights=w, k=1)[0]
 
 def analyze(weights):
    sort = dict(sorted(weights.items(), key=lambda item: item[1]))
@@ -69,7 +70,7 @@ def analyze(weights):
 
 
 def reweight(new_delay, old_delay):
-   delay = old_delay - (old_delay - new_delay)/3   #exponential decay
+   delay = old_delay - (old_delay - new_delay)/2   #exponential decay
    return delay
 
 def train(files):
@@ -104,12 +105,11 @@ def train(files):
                 delay = reweight(new_delay, old_delay)
 
                 if user.upper() == nextword.upper():
-                        print(f'CORRECT time {new_delay:5.2f}s  avg {delay:5.2f}s' )
+                        print(f'{count:3d} CORRECT time {new_delay:5.2f}s  avg {delay:5.2f}s' )
                         weights[nextword] = delay
                 else:
-                        print(f'WRONG word was {nextword}' )
-                        #weights[nextword] = reweight( max_delay, old_delay )
-                        weights[nextword] = max_delay
+                        print(f'{count:3d} WRONG word was {nextword}' )
+                        weights[nextword] = max_delay*2  # extra emphasis
    
                 savehist(weights)
                 time.sleep(2)
