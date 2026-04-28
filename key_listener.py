@@ -324,15 +324,14 @@ def setup_listener():
        message_client.on_message = on_listen_message
        message_client.on_connect = on_listen_connect
        message_client.on_disconnect = on_listen_disconnect
-       message_client.connect_async( IP )
+       message_client.connect_async( 'localhost' )
        message_client.loop_start()  # Start networking daemon
 
 
 def on_listen_connect(client, userdata, flags, rc, properties):
       topic = 'code'
-      qos = 0
       logmesg(syslog.LOG_INFO, 'subscribing to listen to code, and speed' )
-      suboptions = mqtt.SubscribeOptions( qos = 0)
+      suboptions = mqtt.SubscribeOptions( qos = qos)
       result, count = client.subscribe( topic='code' , options = suboptions )
       result, count = client.subscribe( topic='speed', options = suboptions  )
 

@@ -18,7 +18,6 @@ MAX_WPM = 100
 randomAmount = 0.02
 
 # IP addresses for keys to send signals to
-IP = 'localhost'
 IPS = [('localhost', 1883) ]
 
 # wrapper to allow printing to console etc
