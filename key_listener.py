@@ -351,8 +351,8 @@ def on_listen_message(message_client, userdata, msg):
           morse.setSpeed(message) 
 
 def on_listen_disconnect(client, userdata, reason, properties):
-      logmesg(syslog.LOG_INFO, f'on_listen_disconnect' )
-      setup_listener()
+      retcode = client.reconnect()
+      logmesg(syslog.LOG_INFO, f'on_listen_disconnect reconnect code {retcode}' )
 
 
 
