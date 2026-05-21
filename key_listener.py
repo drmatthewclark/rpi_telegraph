@@ -27,18 +27,6 @@ if gpioInputGnd:
     DOWN = GPIO.RISING
 
 
-def reconnect():
-    # connect if not connected
-    global CLIENTS
-    for client in CLIENTS:
-        if not client.is_connected():
-            IP = client._host
-            logmesg(syslog.LOG_INFO, f'reconnecting {IP}' )
-            client.connect_async(IP)
-    return 0
-
-
-
 def showsignals():
     result = ''
     start_time = signals[0][0]
@@ -178,15 +166,17 @@ def publish(client, topic, status, qos=qos ):
 
     if ecode != 0:
         logmesg(syslog.LOG_ERR, f'publish reports failed: {ecode} {count}')
-        while client.reconnect() != 0:
+        while client.reconnect() != 0 and reconnect_tries < max_tries:
              reconnect_tries += 1
-             time.sleep(0.5)
              if reconnect_tries > max_tries:
                   logmesg(syslog.LOG_ERR, f'publish reconnect failed after {max_tries} attempts')
                   break
-        
+
+             time.sleep(0.5)
+  
         ecode, count  = client.publish(topic, status, qos)
         logmesg(syslog.LOG_ERR, f'publish retry result: {ecode} {count} tries {reconnect_tries} ')
+
         if ecode != 0:
             logmesg(syslog.LOG_ERR, f'publish error after recount: {ecode} {count}')
 
