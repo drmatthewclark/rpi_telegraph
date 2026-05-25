@@ -172,13 +172,15 @@ def publish(client, topic, status, qos=qos ):
                   logmesg(syslog.LOG_ERR, f'publish reconnect failed after {max_tries} attempts')
                   break
 
-             time.sleep(0.5)
+             time.sleep(0.2)
   
         ecode, count  = client.publish(topic, status, qos)
-        logmesg(syslog.LOG_ERR, f'publish retry result: {ecode} {count} tries {reconnect_tries} ')
+        logmesg(syslog.LOG_ERR, f'publish retry result: ecode:{ecode} {count} tries: {reconnect_tries} ')
 
         if ecode != 0:
-            logmesg(syslog.LOG_ERR, f'publish error after recount: {ecode} {count}')
+            logmesg(syslog.LOG_ERR, f'publish error after retry: {ecode} {count}')
+        else:
+            logmesg(syslog.LOG_ERR, f'publish ok after retry: {ecode} {count}')
 
  except Exception as  err:
      logmesg(syslog.LOG_ERR, f'publish: {err}' )
