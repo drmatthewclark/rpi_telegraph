@@ -1,13 +1,12 @@
 #!/bin/bash
-# periodic auto-update
+# periodic auto-update of software and reboot 
+# scheduled nightly at 2am or so
 
 cd /usr/local/rpi_telegraph
 git pull
-#service telegraph_listener restart
-#service key_listener restart
+crontab crontab
 
 cd /var/www/html
 git pull
 
-#pm2 restart all
 reboot

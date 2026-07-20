@@ -1,3 +1,2 @@
-# 
 # m h  dom mon dow   command
 0 0     *   *   *    /usr/local/rpi_telegraph/maintain.sh
