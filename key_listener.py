@@ -174,7 +174,7 @@ def publish(client, topic, status, qos=qos ):
 
              time.sleep(0.2)
   
-        ecode, count  = client.publish(topic, status, qos)
+        ecode, count  = client.publish(topic, status, 2)
         logmesg(syslog.LOG_ERR, f'publish retry result: ecode:{ecode} {count} tries: {reconnect_tries} ')
 
         if ecode != 0:
@@ -218,7 +218,7 @@ def setup_client(IP, PORT):
         client = None
         logmesg(syslog.LOG_INFO, f'setup_client: client {IP} try connect{client}' )
         try: 
-            client_id = f'{IP}{random.random()}'
+            client_id = f'{message_client_name} key'  # from config
             client = mqtt.Client(protocol=mqtt.MQTTv5, client_id=client_id )
             client.user_data_set(IP)
             client.on_connect = on_connect
@@ -343,7 +343,9 @@ def on_listen_message(message_client, userdata, msg):
           morse.setSpeed(message) 
 
 def on_listen_disconnect(client, userdata, reason, properties):
+      #client.loop_stop() # reset
       retcode = client.reconnect()
+      #client.loop_start() # restart
       logmesg(syslog.LOG_INFO, f'on_listen_disconnect reconnect code {retcode}' )
 
 

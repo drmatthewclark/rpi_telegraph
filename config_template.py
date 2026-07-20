@@ -5,6 +5,8 @@ configure which pins the equipment is connected to
 import syslog
 import RPi.GPIO as GPIO
 
+message_client_name = 'telegraph'
+
 gpioMode = GPIO.BOARD
 qos = 0
 

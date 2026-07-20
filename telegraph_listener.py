@@ -12,7 +12,7 @@ import signal
 import sys
 
 IP = 'localhost'
-message_client_name = 'telegraph'
+#message_client_name = 'telegraph'  in config
 msg_topic = 'telegraph'
 key_topic = 'key'
 
