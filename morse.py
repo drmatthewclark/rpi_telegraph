@@ -252,10 +252,13 @@ def setup():
    GPIO.setmode(gpioMode) ## Use board pin numbering
    GPIO.setup(gpioOutputPin, GPIO.OUT)  ## Setup GPIO Pin to OUT
    GPIO.output(gpioOutputPin, GPIO.LOW)
+   """
+   # send test click
    GPIO.output(gpioOutputPin, GPIO.HIGH)
    sleep(1)
    GPIO.output(gpioOutputPin, GPIO.LOW)
    sleep(1)
+   """
    return
 
 def clean_exit():
