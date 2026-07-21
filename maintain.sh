@@ -5,6 +5,7 @@ echo "start maintainance"
 date
 
 cd /usr/local/rpi_telegraph
+crontab crontab
 git pull
 
 cd /var/www/html
