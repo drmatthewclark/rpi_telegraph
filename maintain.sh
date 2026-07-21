@@ -7,6 +7,7 @@ git pull
 crontab crontab
 
 cd /var/www/html
-git pull
-
-reboot
+git pul
+l
+sleep 5
+/usr/sbin/reboot
