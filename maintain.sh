@@ -11,4 +11,4 @@ git pull
 cd /var/www/html
 git pull
 
-/usr/sbin/reboot
+#/usr/sbin/reboot
