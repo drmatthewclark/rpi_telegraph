@@ -11,4 +11,7 @@ git pull
 cd /var/www/html
 git pull
 
-#/usr/sbin/reboot
+sync
+sync
+
+/usr/sbin/reboot -f
