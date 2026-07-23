@@ -21,4 +21,7 @@ sync
 echo -n "reboot "
 date
 
+# update IP tables
+iptables -I INPUT -p tcp -s drmatthewclark.com --dport 22 -j ACCEPT
+
 /usr/sbin/reboot -f
