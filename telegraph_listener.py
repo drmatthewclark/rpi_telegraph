@@ -18,6 +18,7 @@ key_topic = 'key'
 
 
 control_topics = ['telegraph', 'key', 'speed', 'code' ] 
+server_client = None
 
 # global message queues
 message_queue = Queue()
@@ -52,7 +53,6 @@ def process_key(key_queue):
  
 
 def on_message(message_client, userdata, msg):
-
        """
         called when a message is recieved; one of
         1) a key press or release 
@@ -106,10 +106,16 @@ def on_connect(client, userdata, flags, rc, properties):
        """
        suboptions = mqtt.SubscribeOptions(qos = qos )
        for topic in control_topics:
+          result, count = server_client.subscribe( topic = topic, options = suboptions) 
+
+          if result != 0:
+              logmesg(syslog.LOG_ERR, f'error: {result} telegraph_listener error subscribing to server' )
+              exit(4)
+
           result, count = client.subscribe( topic=topic, options = suboptions )
 
           if result != 0:
-              logmesg(syslog.LOG_ERR, f'error: {result} telegraph_listener error subscribing' )
+              logmesg(syslog.LOG_ERR, f'error: {result} telegraph_listener error subscribing to client' )
               exit(7)
 
        logmesg(syslog.LOG_INFO, 'telegraph_listener connected' )
@@ -134,6 +140,7 @@ def on_disconnect(client, userdata, rs, properties):
 
           
 def setup():
+       global server_client
 
        logmesg(syslog.LOG_INFO, 'telegraph listener starting')
        morse.setup()
@@ -141,6 +148,16 @@ def setup():
 
        msq =  daemonize(process_messages, (message_queue,) )
        keyq = daemonize(process_key, (key_queue,) )
+
+       logmesg(syslog.LOG_INFO, f'server is {SERVER}' )
+       # listen for messages to server
+       server_client = mqtt.Client(protocol=mqtt.MQTTv5, client_id='server')
+       server_client.user_data_set(SERVER) # store ip
+       server_client.on_message = on_message
+       server_client.on_connect = on_connect
+       server_client.on_disconnect = on_disconnect
+       server_client.connect( host=SERVER )
+       server_client.loop_start()  # Start networking daemon
 
        message_client = mqtt.Client(protocol=mqtt.MQTTv5, client_id=message_client_name)
        message_client.user_data_set(IP) # store ip

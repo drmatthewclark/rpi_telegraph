@@ -16,6 +16,7 @@ gpioInputGnd = False  # signal is grounding gpio pin, vs connecting to 3.3v
 
 wpm = 20
 MAX_WPM = 100
+SERVER = 'drmatthewclark.com'
 
 randomAmount = 0.02
 
