@@ -25,4 +25,5 @@ IPS = [('localhost', 1883) ]
 
 # wrapper to allow printing to console etc
 def logmesg(log_level, msg):
-    syslog.syslog(log_level, msg)
+    print(log_level, msg)
+    syslog.syslog(eval(f'syslog.{log_level}'), msg)
