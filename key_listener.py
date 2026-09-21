@@ -215,7 +215,7 @@ def setup_client(IP, PORT):
         client = None
         logmesg('LOG_INFO', f'setup_client: client {IP} try connect{client}' )
         try: 
-            client_id = f'{message_client_name} key'  # from config
+            client_id = f'{message_client_name} key {random.random()}'  # from config
             client = mqtt.Client(protocol=mqtt.MQTTv5, client_id=client_id )
             client.user_data_set(IP)
             client.on_connect = on_connect

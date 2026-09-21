@@ -4,6 +4,7 @@ import paho.mqtt.client as mqtt
 from queue import Queue
 from threading import Thread
 import time
+import random
 from datetime import datetime
 from config import *
 import morse
@@ -135,7 +136,7 @@ def setup():
 
        logmesg('LOG_INFO', f'server is {SERVER}' )
        # listen for messages to server
-       server_client = mqtt.Client(protocol=mqtt.MQTTv5, client_id=f'server_subscription {SERVER}')
+       server_client = mqtt.Client(protocol=mqtt.MQTTv5, client_id=f'server {SERVER} {random.random()} ')
        server_client.user_data_set(SERVER) # store ip
        server_client.on_message = on_message
        server_client.on_connect = on_connect
@@ -143,7 +144,7 @@ def setup():
        server_client.connect( host=SERVER, keepalive = 30 )
        server_client.loop_start()  # Start networking daemon
   
-       message_client = mqtt.Client(protocol=mqtt.MQTTv5, client_id=message_client_name)
+       message_client = mqtt.Client(protocol=mqtt.MQTTv5, client_id=f'message_client_name {random.random()}')
        message_client.user_data_set(IP) # store ip
        message_client.on_message = on_message 
        message_client.on_connect = on_connect
