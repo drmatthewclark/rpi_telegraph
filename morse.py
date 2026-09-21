@@ -11,7 +11,6 @@ import signal
 from random import gauss
 import RPi.GPIO as GPIO
 from time import sleep
-import syslog
 from code import codesets
 from config import *
 
@@ -46,6 +45,7 @@ lengths = {}
 MAX_WPM = 100
 
 def setSpeed(wpm):
+
         if activecode is None:
             return
 
@@ -87,7 +87,7 @@ def setSpeed(wpm):
            lengths['morseLLength'] = morseLLength
            lengths['morse0Length'] = morse0Length
 
-        logmesg(syslog.LOG_INFO, 'setSpeed: set speed to ' + str(wpm) )
+        logmesg('LOG_INFO', 'setSpeed: set speed to ' + str(wpm) )
         return lengths
 
 
@@ -132,17 +132,15 @@ def setActivecode(codename):
         global activecode # should be global
         assert not activecode is None, 'active code is None still'
 
-        logmesg(syslog.LOG_INFO, 'setActivecode: set code set to %s' %  (activecode.get('Name', 'error')))
+        logmesg('LOG_INFO', 'setActivecode: set code set to %s' %  (activecode.get('Name', 'error')))
 
         global randomDeviation
         activecode  = codesets.get(codename, codesets['morseIMC'] )
-
         setSpeed(wpm)  # reset lengths 
 
-
         if not codename in codesets:
-            logmesg(syslog.LOG_ERR, f'requested code {codename} not in codesets {codesets.keys()}')
-            logmesg(syslog.LOG_ERR, f'defaulting to morseIMC')
+            logmesg('LOG_ERR', f'requested code {codename} not in codesets {codesets.keys()}')
+            logmesg('LOG_ERR', f'defaulting to morseIMC')
 
         assert activecode['Name'] == getActiveCode()
         randomDeviation = lengths['dotLength'] * lengths['randomAmount']
@@ -188,38 +186,34 @@ def pulse(duration):
         sleep(lengths['dotLength'] + gauss(0, randomDeviation))
 
 def dot():
-        logmesg(syslog.LOG_DEBUG, "dit ")
         pulse(lengths['dotLength'])
 
 def dash():
-        logmesg(syslog.LOG_DEBUG, "dah ")
         pulse(lengths['dashLength'])
 
 def morseL():    # special for old morse L
-        logmesg(syslog.LOG_DEBUG, "dahh ")
         pulse(lengths['morseLLength'])
 
 def morse0():   # special dash for old morse 0
-        logmesg(syslog.LOG_DEBUG, "dahhh ")
         pulse(lengths['morse0Length'])
 
 def midLetterPause():   # special mid-character pause for old morse
-        logmesg(syslog.LOG_DEBUG, "spaced letter pause")
+        logmesg('LOG_DEBUG', "spaced letter pause")
         sleep(lengths['pauseLength'])
 
 def letterPause():  # pause between letters
-        logmesg(syslog.LOG_DEBUG, "letter pause" ) 
+        logmesg('LOG_DEBUG', "letter pause" ) 
         sleep(lengths['letterPauseLength'])
 
 def wordPause():  # pause between words
-        logmesg(syslog.LOG_DEBUG, "*-word space-*") 
+        logmesg('LOG_DEBUG', "*-word space-*") 
         sleep(lengths['wordPauseLength'])
 
 
 def space():
-        logmesg(syslog.LOG_DEBUG, "space") 
+        logmesg('LOG_DEBUG', "space") 
         sleep(lengths['wordPauseLength'])
-        logmesg(syslog.LOG_DEBUG, "space") 
+        logmesg('LOG_DEBUG', "space") 
 
 
 def sendCode(code):
@@ -241,7 +235,7 @@ def sendCode(code):
                 elif dahdit == 'l':
                         letterPause() # pause between letters
                 else:  # any other character, or an actual space
-                        logmesg(syslog.LOG_WARNING, f'unexpected letter {code},  {dahdit}'  )
+                        logmesg('LOG_WARNING', f'unexpected letter {code},  {dahdit}'  )
                         space()
 
         letterPause()
@@ -249,22 +243,13 @@ def sendCode(code):
 
 # setup IO ports
 def setup():
+
+   GPIO.cleanup(gpioOutputPin)
    GPIO.setmode(gpioMode) ## Use board pin numbering
    GPIO.setup(gpioOutputPin, GPIO.OUT)  ## Setup GPIO Pin to OUT
    GPIO.output(gpioOutputPin, GPIO.LOW)
-   """
-   # send test click
-   GPIO.output(gpioOutputPin, GPIO.HIGH)
-   sleep(1)
-   GPIO.output(gpioOutputPin, GPIO.LOW)
-   sleep(1)
-   """
+
    return
-
-def clean_exit():
-   GPIO.cleanup()
-   sys.exit(0)
-
 
 def message(dline):
 
@@ -280,7 +265,7 @@ def message(dline):
      dline = dline.upper().strip()
 
      for char in dline:
-       logmesg(syslog.LOG_DEBUG, str(char) + " ")
+       logmesg('LOG_DEBUG', f'{char} ' )
        morseCode = morse(char) # convert char to morse code representation
        sendCode(morseCode)     # sound out the code
 

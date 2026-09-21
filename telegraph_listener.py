@@ -6,7 +6,6 @@ from threading import Thread
 import time
 from datetime import datetime
 from config import *
-import syslog
 import morse
 import signal 
 import sys
@@ -14,10 +13,8 @@ import sys
 IP = 'localhost'
 #message_client_name = 'telegraph'  in config
 msg_topic = 'telegraph'
-key_topic = 'key'
 
-
-control_topics = ['telegraph', 'key', 'speed', 'code' ] 
+control_topics = ['telegraph', 'speed', 'code' ] 
 server_client = None
 
 # global message queues
@@ -35,22 +32,9 @@ def process_messages(message_queue):
               msg = message_queue.get(block=True)
               morse.message(msg)
        except Exception as err:
-           logmesg(syslog.LOG_ERR, f'Error in process_messages: {err}' )
+           logmesg('LOG_ERR', f'Error in process_messages: {err}' )
 
            
-
-def process_key(key_queue):
-       """
-       process the queue of key presses to transmit because one could come in while another is still in progress
-       """
-
-       while True:
-              msg = key_queue.get(block=True)
-              morse.key( int(msg) )
-
-       logmesg(syslog.LOG_INFO, 'process key ended' )
-
- 
 
 def on_message(message_client, userdata, msg):
        """
@@ -63,10 +47,7 @@ def on_message(message_client, userdata, msg):
        m = msg.payload.decode('utf-8')   # the actual message
        topic = msg.topic
 
-       if topic == key_topic:
-              key_queue.put(m)
-
-       elif topic == msg_topic:       
+       if topic == msg_topic:       
               message_queue.put(m)
 
        elif topic in control_topics:
@@ -74,17 +55,17 @@ def on_message(message_client, userdata, msg):
               try:
                  speed = float(m)
                  morse.setSpeed( speed )
-                 logmesg(syslog.LOG_INFO, f'listener setting speed to {speed}')
+                 logmesg('LOG_INFO', f'listener setting speed to {speed}')
               except Exception as err:
-                 logmesg(syslog.LOG_ERR, f'listener error setting speed to {m}:  {err}')
+                 logmesg('LOG_ERR', f'listener error setting speed to {m}:  {err}')
 
             elif topic == 'code':
-               logmesg(syslog.LOG_INFO, f'listener setting active code to {m}' )
+               logmesg('LOG_INFO', f'listener setting active code to {m}' )
                morse.setActivecode(m)
-               logmesg(syslog.LOG_INFO, f'listener set active code to {morse.getActiveCode()}' )
+               logmesg('LOG_INFO', f'listener set active code to {morse.getActiveCode()}' )
   
        else: 
-          logmesg(syslog.LOG_ERR, f'listener topic  {topic}, {m} not understood' )
+          logmesg('LOG_ERR', f'listener topic  {topic}, {m} not understood' )
 
 
            
@@ -109,16 +90,20 @@ def on_connect(client, userdata, flags, rc, properties):
           result, count = server_client.subscribe( topic = topic, options = suboptions) 
 
           if result != 0:
-              logmesg(syslog.LOG_ERR, f'error: {result} telegraph_listener error subscribing to server' )
+              logmesg('LOG_ERR', 
+              f'on_connect: error {result} telegraph_listener "{client._client_id.decode()}" subscribing to server {topic}' )
               exit(4)
+          else:
+              logmesg('LOG_INFO', 
+              f'on_connect: telegraph_listener "{client._client_id.decode()}" subscribed to {topic}' )
 
           result, count = client.subscribe( topic=topic, options = suboptions )
 
           if result != 0:
-              logmesg(syslog.LOG_ERR, f'error: {result} telegraph_listener error subscribing to client' )
+              logmesg('LOG_ERR', f'error: {result} telegraph_listener "{client._client_id.decode()}" error subscribing to client' )
               exit(7)
 
-       logmesg(syslog.LOG_INFO, 'telegraph_listener connected' )
+       logmesg('LOG_INFO', 'telegraph_listener connected' )
 
 
 
@@ -128,37 +113,36 @@ def on_disconnect(client, userdata, rs, properties):
     called when the server disconnects
     """
     host = client._host
-    logmesg(syslog.LOG_ERR, f'on_disconnect: {client} {rs} {host}  disconnected')
+    logmesg('LOG_ERR', f'on_disconnect: {client} {rs} {host}  disconnected')
 
     ret = client.connect( host=host )
 
     if ret == 0:
-        logmesg(syslog.LOG_INFO, f'on_disconnect: reconnected {host}')
+        logmesg('LOG_INFO', f'on_disconnect: reconnected {host}')
     else:
-        logmesg(syslog.LOG_ERR, f'on_disconnect: failed to reconnect {host}' )
+        logmesg('LOG_ERR', f'on_disconnect: failed to reconnect {host}' )
 
 
           
 def setup():
        global server_client
 
-       logmesg(syslog.LOG_INFO, 'telegraph listener starting')
+       logmesg('LOG_INFO', 'telegraph listener starting')
        morse.setup()
        morse.setSpeed(wpm) # set to config file value
 
        msq =  daemonize(process_messages, (message_queue,) )
-       keyq = daemonize(process_key, (key_queue,) )
 
-       logmesg(syslog.LOG_INFO, f'server is {SERVER}' )
+       logmesg('LOG_INFO', f'server is {SERVER}' )
        # listen for messages to server
-       server_client = mqtt.Client(protocol=mqtt.MQTTv5, client_id='server')
+       server_client = mqtt.Client(protocol=mqtt.MQTTv5, client_id=f'server_subscription {SERVER}')
        server_client.user_data_set(SERVER) # store ip
        server_client.on_message = on_message
        server_client.on_connect = on_connect
-       server_client.on_disconnect = on_disconnect
-       server_client.connect( host=SERVER )
+       #server_client.on_disconnect = on_disconnect
+       server_client.connect( host=SERVER, keepalive = 30 )
        server_client.loop_start()  # Start networking daemon
-
+  
        message_client = mqtt.Client(protocol=mqtt.MQTTv5, client_id=message_client_name)
        message_client.user_data_set(IP) # store ip
        message_client.on_message = on_message 
@@ -167,11 +151,10 @@ def setup():
        message_client.connect( host=IP )
        message_client.loop_start()  # Start networking daemon
 
-
-       keyq.join() 
+       # this function should not return 
        msq.join()
   
-       logmesg(syslog.LOG_ERR, 'telegraph listener finished' )
+       logmesg('LOG_ERR', 'telegraph listener finished' )
 
 
 if __name__ == '__main__':
