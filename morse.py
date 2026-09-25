@@ -168,7 +168,7 @@ def morse(char):
 # wrapper for pulses
 
 def key(action):
-
+   try:
         global pinOn # track outside of GPIO
 
         if action:
@@ -177,7 +177,8 @@ def key(action):
         else:
                 GPIO.output(gpioOutputPin, GPIO.LOW)
                 pinOn = False
-
+   except Exception as err:
+       logmesg('LOG_ERR', f'key: error {err}' )
 
 def pulse(duration):
         GPIO.output(gpioOutputPin, GPIO.HIGH)
@@ -243,11 +244,16 @@ def sendCode(code):
 
 # setup IO ports
 def setup():
+   try: 
+      GPIO.cleanup(gpioOutputPin)
+      GPIO.setmode(gpioMode) ## Use board pin numbering
+      GPIO.setup(gpioOutputPin, GPIO.OUT)  ## Setup GPIO Pin to OUT
+      GPIO.output(gpioOutputPin, GPIO.LOW)
 
-   GPIO.cleanup(gpioOutputPin)
-   GPIO.setmode(gpioMode) ## Use board pin numbering
-   GPIO.setup(gpioOutputPin, GPIO.OUT)  ## Setup GPIO Pin to OUT
-   GPIO.output(gpioOutputPin, GPIO.LOW)
+   except Exception as err:
+      logmesg('LOG_ERR', f'morse.setup: {err}' )
+      GPIO.cleanup(gpioOutputPin)
+    
 
    return
 

@@ -10,6 +10,7 @@ from config import *
 import morse
 import signal 
 import sys
+from multiprocessing.connection import Listener
 
 IP = 'localhost'
 #message_client_name = 'telegraph'  in config
@@ -32,6 +33,7 @@ def process_messages(message_queue):
           while True:
               msg = message_queue.get(block=True)
               morse.message(msg)
+
        except Exception as err:
            logmesg('LOG_ERR', f'Error in process_messages: {err}' )
 
@@ -74,8 +76,11 @@ def daemonize( func, args ):
         """
         deamonize a function to run asynchronously
         """
-       
-        worker = Thread(target=func, name=str(func), args=args, daemon=True)
+        if args is None:
+           worker = Thread(target=func, name=str(func), daemon=True)
+        else:
+           worker = Thread(target=func, name=str(func), args=args, daemon=True)
+    
         worker.start()
         return worker
 
@@ -124,14 +129,28 @@ def on_disconnect(client, userdata, rs, properties):
         logmesg('LOG_ERR', f'on_disconnect: failed to reconnect {host}' )
 
 
+def listen():
+
+   address = ('127.0.5.1', 16320)
+
+   while True:
+     try: 
+       listener = Listener(address, authkey=b'x')
+       conn = listener.accept()
+       while True:
+          msg = conn.recv()
+          morse.key( msg )
+     finally:
+          pass
+    
           
 def setup():
        global server_client
-
-       logmesg('LOG_INFO', 'telegraph listener starting')
        morse.setup()
+       logmesg('LOG_INFO', 'telegraph listener starting')
        morse.setSpeed(wpm) # set to config file value
 
+       daemonize( listen, None  ) 
        msq =  daemonize(process_messages, (message_queue,) )
 
        logmesg('LOG_INFO', f'server is {SERVER}' )
