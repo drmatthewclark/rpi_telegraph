@@ -203,12 +203,6 @@ def sendinterpret( msg ):
    try:    
        intr_conn.send(msg)
    except:
-       if not intr_conn is None:
-            try:
-               intr_conn.close()
-            except:
-               pass
-
        intr_conn = send_client(intr_address)
        intr_conn.send(msg)
 
@@ -220,12 +214,6 @@ def sendmsg( msg ):
    try:    
        key_conn.send(msg)
    except:
-       if not key_conn is None:
-            try:
-               key_conn.close()
-            except:
-               pass
-
        key_conn = send_client(key_address)
        key_conn.send(msg)
    
@@ -235,7 +223,7 @@ if __name__ == '__main__':
    key_address =  ('127.0.5.1', 16320)
    intr_address = ('127.0.5.1', 16321)
    key_conn = None
-   intr_conn = send_client(intr_address, authkey=b'x')
+   intr_conn = send_client(intr_address)
 
    logmesg('LOG_INFO', 'key listener starting' )
    setup_gpio()
