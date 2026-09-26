@@ -13,14 +13,10 @@ import random
 from threading import Event
 from multiprocessing.connection import Client
 
-address = ('127.0.5.1', 16320)
-conn = Client(address, authkey=b'x')
-
-
 
 # topic to broadcast for key press/release 
 topic = 'key'      # key press
-interpret_topic  = 'telegraph'
+interpret_topic  = 'interpret'
 signals = []    # stores tuples of (time, event(up/down) )  to evaluate
 
 UP = GPIO.RISING
@@ -114,8 +110,13 @@ def interpret(interval):
     logmesg('LOG_INFO', result)
 
     if not char is None:
-       for client in CLIENTS[1:]:
+       # publish local
+       for client in CLIENTS:
            Thread(target=publish, args=(client, interpret_topic, char.encode('utf8'), qos), daemon=True ).start()
+
+       # publish to everyone but local
+       for client in CLIENTS[1:]:
+           Thread(target=publish, args=(client, 'telegraph', char.encode('utf8'), qos), daemon=True ).start()
 
     signals.clear()
 
@@ -353,6 +354,9 @@ def on_listen_disconnect(client, userdata, reason, properties):
 
 
 if __name__ == '__main__':
+
+   address = ('127.0.5.1', 16320)
+   conn = Client(address, authkey=b'x')
 
    logmesg('LOG_INFO', 'key listener starting' )
    setup_gpio()

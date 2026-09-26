@@ -134,15 +134,18 @@ def listen():
    address = ('127.0.5.1', 16320)
 
    while True:
+     logmesg('LOG_INFO', f'telegraph socket listener starting' )
      try: 
        listener = Listener(address, authkey=b'x')
        conn = listener.accept()
        while True:
           msg = conn.recv()
           morse.key( msg )
-     finally:
-          pass
+
+     except Exception as err:
+        logmesg('LOG_ERR', f'telegraph socket listener err {err}' )
     
+   logmesg('LOG_INFO', 'telegraph socket listener ending')
           
 def setup():
        global server_client
@@ -150,7 +153,7 @@ def setup():
        logmesg('LOG_INFO', 'telegraph listener starting')
        morse.setSpeed(wpm) # set to config file value
 
-       daemonize( listen, None  ) 
+       lis = daemonize( listen, None  ) 
        msq =  daemonize(process_messages, (message_queue,) )
 
        logmesg('LOG_INFO', f'server is {SERVER}' )
