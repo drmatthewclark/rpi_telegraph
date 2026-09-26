@@ -101,7 +101,7 @@ def interpret(interval):
 
     if not char is None:
        sendinterpret( char.encode('utf8') )
-       logmesg('LOG_INFO', f'send msg { char.encode('utf8') }' )
+       logmesg('LOG_INFO', f'send msg { char.encode("utf8") }' )
 
     signals.clear()
 
