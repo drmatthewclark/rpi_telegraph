@@ -203,7 +203,13 @@ def sendinterpret( msg ):
    try:    
        intr_conn.send(msg)
    except:
-       intr_conn = send_client(intr_address, authkey=b'x')
+       if not intr_conn is None:
+            try:
+               intr_conn.close()
+            except:
+               pass
+
+       intr_conn = send_client(intr_address)
        intr_conn.send(msg)
 
 
@@ -214,7 +220,13 @@ def sendmsg( msg ):
    try:    
        key_conn.send(msg)
    except:
-       key_conn = send_client(key_address, authkey=b'x')
+       if not key_conn is None:
+            try:
+               key_conn.close()
+            except:
+               pass
+
+       key_conn = send_client(key_address)
        key_conn.send(msg)
    
 

@@ -146,7 +146,7 @@ def listen_for_interpret():
 
    while True:
      logmesg('LOG_INFO', f'telegraph interpreter socket listener starting' )
-     listener = Listener(address, authkey=b'x')
+     listener = Listener(address)
      conn = listener.accept()
      try: 
        while True:
@@ -169,7 +169,7 @@ def listen_for_key():
 
    while True:
      logmesg('LOG_INFO', f'telegraph socket listener starting' )
-     listener = Listener(address, authkey=b'x')
+     listener = Listener(address)
      conn = listener.accept()
      try: 
        while True:
