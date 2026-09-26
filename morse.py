@@ -14,7 +14,8 @@ from time import sleep
 from code import codesets
 from config import *
 
-activecode = codesets['morseIMC']
+defaultcode = 'morseIMC' 
+activecode = codesets[defaultcode]
 
 # global setup stuff
 
@@ -275,6 +276,9 @@ def message(dline):
        morseCode = morse(char) # convert char to morse code representation
        sendCode(morseCode)     # sound out the code
 
+
+
+setActivecode(defaultcode)
 
 #
 # realistic end of message codes

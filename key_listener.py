@@ -1,22 +1,14 @@
 #!/usr/bin/python3
 
-import paho.mqtt.client as mqtt
 import RPi.GPIO as GPIO
 import time as time
-import os
-import signal
 from threading import Thread
 from config import *
 import morse
-import re
-import random
 from threading import Event
-from multiprocessing.connection import Client
+from multiprocessing.connection import Client as send_client
+import traceback
 
-
-# topic to broadcast for key press/release 
-topic = 'key'      # key press
-interpret_topic  = 'interpret'
 signals = []    # stores tuples of (time, event(up/down) )  to evaluate
 
 UP = GPIO.RISING
@@ -28,6 +20,7 @@ if gpioInputGnd:
     DOWN = GPIO.RISING
 
 
+# diagnostic
 def showsignals():
     result = ''
     start_time = signals[0][0]
@@ -37,22 +30,19 @@ def showsignals():
 
     return result
 
+
 def interpret(interval):
     """ 
     interpret  the key clicks to assign to a caracter
 
     """
-    global CLIENTS
 
     if len(signals) < 2:
         return
-    if len(CLIENTS) == 0: 
-       return
 
     logmesg('LOG_INFO', '%6.4f interpret...' % (interval) )
     dot = morse.lengths['dotLength']
     dash = morse.lengths['dashLength']
-    client  = CLIENTS[0]
     dotdash = []
     
     for i, (t, s) in enumerate(signals):
@@ -107,16 +97,11 @@ def interpret(interval):
     totalerr = (100.0*actual_length/ideal_length) - 100.0
     char = morse.morse2char(morseChar)
     result =   "%6s\t%s\t%4.0f" % (morseChar, char, totalerr)
-    logmesg('LOG_INFO', result)
+    logmesg('LOG_INFO', f' interpret: {result}' )
 
     if not char is None:
-       # publish local
-       for client in CLIENTS:
-           Thread(target=publish, args=(client, interpret_topic, char.encode('utf8'), qos), daemon=True ).start()
-
-       # publish to everyone but local
-       for client in CLIENTS[1:]:
-           Thread(target=publish, args=(client, 'telegraph', char.encode('utf8'), qos), daemon=True ).start()
+       sendinterpret( char.encode('utf8') )
+       logmesg('LOG_INFO', f'send msg { char.encode('utf8') }' )
 
     signals.clear()
 
@@ -129,8 +114,6 @@ def analyzer():
     """
     criteria =  morse.lengths['letterPauseLength'] 
     sleeptime = morse.lengths['dotLength']/2
-    ping_interval = 15
-    last_ping = time.perf_counter()
 
     # loop awaiting signals
     while True:
@@ -139,11 +122,6 @@ def analyzer():
             num_signals = len(signals)
 
             if num_signals == 0 :
-              if (now - last_ping)  > ping_interval:
-                 last_ping = now
-                 for client in CLIENTS:
-                    Thread(target=publish, args=(client, 'ping', 1), daemon=True ).start()
-
               continue
 
             interval = now - signals[-1][0]
@@ -152,107 +130,12 @@ def analyzer():
                 interpret(interval)
 
         except Exception as err:
-            logmesg('LOG_ERR', f'analyzer error {err}' )
+            logmesg('LOG_ERR', f'analyzer error {err} \n{traceback.format_exc()}  ' )
             pass
         finally:
             time.sleep(sleeptime) # wait for data 
 
 
-#
-# wrapper for mqtt publish
-#
-def publish(client, topic, status, qos=qos ):
- try:
-    reconnect_tries = 0
-    max_tries = 10
-
-    ecode, count  = client.publish(topic, status, qos)
-
-    if ecode != 0:
-        logmesg('LOG_ERR', f'publish reports failed: {ecode} {count}')
-        while client.reconnect() != 0 and reconnect_tries < max_tries:
-             reconnect_tries += 1
-             if reconnect_tries > max_tries:
-                  logmesg('LOG_ERR', f'publish reconnect failed after {max_tries} attempts')
-                  break
-
-             time.sleep(0.2)
-  
-        ecode, count  = client.publish(topic, status, 2)
-        logmesg('LOG_ERR', f'publish retry result: ecode:{ecode} {count} tries: {reconnect_tries} ')
-
-        if ecode != 0:
-            logmesg('LOG_ERR', f'publish error after retry: {ecode} {count}')
-        else:
-            logmesg('LOG_ERR', f'publish ok after retry: {ecode} {count}')
-
- except Exception as  err:
-     logmesg('LOG_ERR', f'publish: {err}' )
-
-
-
-def on_connect(client, userdata, flags, rc, properties):
-     """
-     called on connection to mqtt server 
-     """
-     if rc != 0:
-         logmesg('LOG_ERR', f'key listener ERROR connecting: {rc} flags {flags}' )
-
-     logmesg('LOG_INFO', f'on_connect: connected {client} {flags}' )
-
-
-
-
-def on_disconnect(client, userdata, reason, properties):
-    """
-    called on disconnect
-    """
-
-    logmesg('LOG_INFO', f'on_disconnect: {client} {reason} disconnected')
- 
-    if client.reconnect() == 0:
-        logmesg('LOG_INFO', f'on_disconnect: reconnected {client}' )
-    else:
-        logmesg('LOG_ERR', f'on_disconnect: failed to reconnect {client}' )
-
-
-
-
-def setup_client(IP, PORT):
-        client = None
-        logmesg('LOG_INFO', f'setup_client: client {IP} try connect{client}' )
-        try: 
-            client_id = f'{message_client_name} key {random.random()}'  # from config
-            client = mqtt.Client(protocol=mqtt.MQTTv5, client_id=client_id )
-            client.user_data_set(IP)
-            client.on_connect = on_connect
-            client.on_disconnect = on_disconnect
-            client.connect( host=IP, port=PORT )
-            logmesg('LOG_INFO', f'setup_client: client {IP} connected {client} id {client_id}' )
-            
-        except Exception as exp:
-            logmesg('LOG_ERR', f'setup_client: error connecting to {IP} err: {exp}' )
-        finally:
-            return client
-
-def setup_clients():
-    """
-    set up the connections
-    """
-    clients = []
-
-    for IP,PORT in IPS:  # list of configured IP addresses to broadcast to
-        client = setup_client( IP, PORT )  
-        if client is None:  # if none, make a second try
-            time.sleep(10)
-            client = setup_client( IP, PORT )
-            if not client is None:
-                 clients.append( client )
-        else:
-            clients.append( client ) 
-
-    return clients
-   
  
 def setup_gpio():
 
@@ -278,7 +161,7 @@ def setup_gpio():
            logmesg('LOG_ERR', f'setup_gpio setup: {err}')
 
 
-def signal(arg):
+def key_signal(arg):
     # called on key press or release 
     now =  time.perf_counter()
     level = int( GPIO.input(gpioInputPin) )
@@ -287,10 +170,8 @@ def signal(arg):
          level = 1 - level 
 
     signals.append( (now, level ) )
-    conn.send( level == 1 ) 
+    sendmsg( level == 1 ) 
 
-    #for client in CLIENTS:
-    #     Thread(target=publish, args=(client, topic, level, qos), daemon=True ).start()
 
 
 def gpio_listener():
@@ -298,7 +179,7 @@ def gpio_listener():
     main listening loop for key presses
     """
     setup_gpio() 
-    GPIO.add_event_detect(gpioInputPin, GPIO.BOTH, signal, 1 )
+    GPIO.add_event_detect(gpioInputPin, GPIO.BOTH, key_signal, 1 )
     Event().wait()  # wait here forever
 
 
@@ -313,63 +194,41 @@ def daemonize( func, args=None ):
 
 
 
-def setup_listener():
-       logmesg('LOG_INFO', 'setup_listener started' )
-       message_client = mqtt.Client(protocol=mqtt.MQTTv5, client_id='key_listener')
-       message_client.on_message = on_listen_message
-       message_client.on_connect = on_listen_connect
-       message_client.on_disconnect = on_listen_disconnect
-       message_client.connect_async( 'localhost' )
-       message_client.loop_start()  # Start networking daemon
+
+# send interpretation of key stroke
+def sendinterpret( msg ):
+
+   global intr_conn
+
+   try:    
+       intr_conn.send(msg)
+   except:
+       intr_conn = send_client(intr_address, authkey=b'x')
+       intr_conn.send(msg)
 
 
-def on_listen_connect(client, userdata, flags, rc, properties):
-      topic = 'code'
-      logmesg('LOG_INFO', 'subscribing to listen to code, and speed' )
-      suboptions = mqtt.SubscribeOptions( qos = qos)
-      result, count = client.subscribe( topic='code' , options = suboptions )
-      result, count = client.subscribe( topic='speed', options = suboptions  )
+# send telegraph key stroke
+def sendmsg( msg ):
+   global key_conn
 
-      if result != 0:
-              logmesg('LOG_ERR', f'error: {result} key_listener error subscribing' )
-              exit(7)
-
-
-def on_listen_message(message_client, userdata, msg):
-      
-       message = msg.payload.decode('utf-8')   # the actual message
-       topic = msg.topic
-       logmesg('LOG_INFO', f'on_listen_message recieved {topic} {message}' )
-       if topic == 'code':
-          morse.setActivecode(message)
-       if topic == 'speed':
-          morse.setSpeed(message) 
-
-def on_listen_disconnect(client, userdata, reason, properties):
-      #client.loop_stop() # reset
-      retcode = client.reconnect()
-      #client.loop_start() # restart
-      logmesg('LOG_INFO', f'on_listen_disconnect reconnect code {retcode}' )
-
-
+   try:    
+       key_conn.send(msg)
+   except:
+       key_conn = send_client(key_address, authkey=b'x')
+       key_conn.send(msg)
+   
 
 if __name__ == '__main__':
 
-   address = ('127.0.5.1', 16320)
-   conn = Client(address, authkey=b'x')
+   key_address =  ('127.0.5.1', 16320)
+   intr_address = ('127.0.5.1', 16321)
+   key_conn = None
+   intr_conn = send_client(intr_address, authkey=b'x')
 
    logmesg('LOG_INFO', 'key listener starting' )
    setup_gpio()
-   CLIENTS = setup_clients()
-   logmesg('LOG_INFO', 'clients ' + str(CLIENTS) )
-   morse.setActivecode('morseIMC')  # default code
-
-   setup_listener()
-
    ana = daemonize( analyzer )  # figures out the letters
    gpio_listener()  # listens to local key waits here forever
-
+   ana.join()
    logmesg('LOG_ERR', 'gpio_listener ended unexpectedly' )
 
-   gpl.join()
-   ana.join()

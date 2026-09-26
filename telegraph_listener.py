@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+
 import paho.mqtt.client as mqtt
 from queue import Queue
 from threading import Thread
@@ -16,12 +17,12 @@ IP = 'localhost'
 #message_client_name = 'telegraph'  in config
 msg_topic = 'telegraph'
 
-control_topics = ['telegraph', 'speed', 'code' ] 
+control_topics = ['telegraph', 'ctrl/speed', 'ctrl/code' ] 
 server_client = None
+message_client = None
 
 # global message queues
 message_queue = Queue()
-key_queue     = Queue()
 
 
 def process_messages(message_queue):
@@ -47,6 +48,7 @@ def on_message(message_client, userdata, msg):
         3) an alteration of parameters, speed, code, loglevel
 
        """
+       logmesg('LOG_DEBUG', f'on_message: {message_client._client_id} {userdata}  msg: {msg}')
        m = msg.payload.decode('utf-8')   # the actual message
        topic = msg.topic
 
@@ -86,24 +88,33 @@ def daemonize( func, args ):
 
 
 
+def on_server_connect(client, userdata, flags, rc, properties):
+       """
+       called on connection to the server
+       subcribe to the server on connections.
+       """
+       options = mqtt.SubscribeOptions( noLocal=True, qos=qos )
+       for topic in control_topics:
+           
+          result, count = client.subscribe( topic=topic, options = options )
+
+          if result != 0:
+              logmesg('LOG_ERR', f'error: {result} telegraph_listener "{client._client_id.decode()}" error subscribing to client' )
+              exit(7)
+
+       logmesg('LOG_INFO', 'telegraph_listener connected' )
+
+
+
 def on_connect(client, userdata, flags, rc, properties):
        """
        called on connection to the server
        subcribe to the server on connections.
        """
-       suboptions = mqtt.SubscribeOptions(qos = qos )
+       options = mqtt.SubscribeOptions( noLocal=True, qos=qos )
        for topic in control_topics:
-          result, count = server_client.subscribe( topic = topic, options = suboptions) 
-
-          if result != 0:
-              logmesg('LOG_ERR', 
-              f'on_connect: error {result} telegraph_listener "{client._client_id.decode()}" subscribing to server {topic}' )
-              exit(4)
-          else:
-              logmesg('LOG_INFO', 
-              f'on_connect: telegraph_listener "{client._client_id.decode()}" subscribed to {topic}' )
-
-          result, count = client.subscribe( topic=topic, options = suboptions )
+           
+          result, count = client.subscribe( topic=topic, options = options )
 
           if result != 0:
               logmesg('LOG_ERR', f'error: {result} telegraph_listener "{client._client_id.decode()}" error subscribing to client' )
@@ -129,44 +140,74 @@ def on_disconnect(client, userdata, rs, properties):
         logmesg('LOG_ERR', f'on_disconnect: failed to reconnect {host}' )
 
 
-def listen():
+def listen_for_interpret():
+
+   address = ('127.0.5.1', 16321)
+
+   while True:
+     logmesg('LOG_INFO', f'telegraph interpreter socket listener starting' )
+     listener = Listener(address, authkey=b'x')
+     conn = listener.accept()
+     try: 
+       while True:
+          msg = conn.recv()
+          logmesg('LOG_INFO', f'interpret recieve message  {msg}'  )
+          message_client.publish('telegraph', msg, qos )
+          server_client.publish('telegraph', msg, qos )
+         
+          listener.close() 
+     except Exception as err:
+        logmesg('LOG_ERR', f'telegraph socket listener err {err}, closing' )
+        listener.close()
+    
+   logmesg('LOG_INFO', 'telegraph interpreter socket listener ending')
+
+
+def listen_for_key():
 
    address = ('127.0.5.1', 16320)
 
    while True:
      logmesg('LOG_INFO', f'telegraph socket listener starting' )
+     listener = Listener(address, authkey=b'x')
+     conn = listener.accept()
      try: 
-       listener = Listener(address, authkey=b'x')
-       conn = listener.accept()
        while True:
           msg = conn.recv()
           morse.key( msg )
-
+       
      except Exception as err:
-        logmesg('LOG_ERR', f'telegraph socket listener err {err}' )
+        logmesg('LOG_ERR', f'telegraph socket listener err {err}, closing' )
+        listener.close()
     
    logmesg('LOG_INFO', 'telegraph socket listener ending')
-          
+     
+     
 def setup():
        global server_client
+       global message_client
+
        morse.setup()
        logmesg('LOG_INFO', 'telegraph listener starting')
        morse.setSpeed(wpm) # set to config file value
 
-       lis = daemonize( listen, None  ) 
+       lis  = daemonize( listen_for_key, None  ) 
+       intr = daemonize( listen_for_interpret, None  ) 
        msq =  daemonize(process_messages, (message_queue,) )
 
        logmesg('LOG_INFO', f'server is {SERVER}' )
        # listen for messages to server
-       server_client = mqtt.Client(protocol=mqtt.MQTTv5, client_id=f'server {SERVER} {random.random()} ')
+       server_client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+                                    protocol=mqtt.MQTTv5, client_id=f'server {SERVER} {random.random()} ')
        server_client.user_data_set(SERVER) # store ip
        server_client.on_message = on_message
-       server_client.on_connect = on_connect
-       #server_client.on_disconnect = on_disconnect
+       server_client.on_connect = on_server_connect
+       server_client.on_disconnect = on_disconnect
        server_client.connect( host=SERVER, keepalive = 30 )
        server_client.loop_start()  # Start networking daemon
   
-       message_client = mqtt.Client(protocol=mqtt.MQTTv5, client_id=f'message_client_name {random.random()}')
+       message_client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+                                   protocol=mqtt.MQTTv5, client_id=f'message_client_name {random.random()}')
        message_client.user_data_set(IP) # store ip
        message_client.on_message = on_message 
        message_client.on_connect = on_connect
@@ -178,7 +219,6 @@ def setup():
        msq.join()
   
        logmesg('LOG_ERR', 'telegraph listener finished' )
-
 
 if __name__ == '__main__':
      setup()
