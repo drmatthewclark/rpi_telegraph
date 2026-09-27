@@ -1,16 +1,11 @@
 #!/usr/bin/python
 
-
 import paho.mqtt.client as mqtt
 from queue import Queue
 from threading import Thread
-import time
 import random
-from datetime import datetime
 from config import *
 import morse
-import signal 
-import sys
 from multiprocessing.connection import Listener
 
 IP = 'localhost'
