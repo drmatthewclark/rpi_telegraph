@@ -13,7 +13,7 @@ cp key_listener.service /lib/systemd/system/
 cp telegraph_listener.service /lib/systemd/system/
 
 
-cd /var/www/html
+cd /var/www
 pwd
 git pull
 
