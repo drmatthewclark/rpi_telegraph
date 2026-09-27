@@ -11,7 +11,7 @@ from multiprocessing.connection import Listener
 IP = 'localhost'
 msg_topic = 'telegraph'
 
-control_topics = ['telegraph', 'speed', 'code' f'telegraph/{message_client_name}' ] 
+control_topics = ['telegraph', 'speed', 'code',  f'telegraph/{message_client_name}' ] 
 server_client = None
 message_client = None
 
@@ -46,7 +46,7 @@ def on_message(message_client, userdata, msg):
        m = msg.payload.decode('utf-8')   # the actual message
        topic = msg.topic
 
-       if topic == msg_topic:       
+       if topic.startswith(msg_topic):       
               message_queue.put(m)
 
        elif topic in control_topics:
@@ -91,7 +91,7 @@ def on_server_connect(client, userdata, flags, rc, properties):
        for topic in control_topics:
            
           result, count = client.subscribe( topic=topic, options = options )
-
+          logmesg('LOG_INFO', f'subscribe topic {topic}'  )
           if result != 0:
               logmesg('LOG_ERR', f'error: {result} telegraph_listener "{client._client_id.decode()}" error subscribing to client' )
               exit(7)
