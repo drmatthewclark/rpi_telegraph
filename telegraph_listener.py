@@ -133,6 +133,13 @@ def on_disconnect(client, userdata, rs, properties):
     else:
         logmesg('LOG_ERR', f'on_disconnect: failed to reconnect {host}' )
 
+def getsel():
+   try:
+     with open('/tmp/selected_dests', 'r') as file:
+        d = file.read().split('|')
+     return d
+   except:
+     return ['']
 
 def listen_for_interpret():
 
@@ -146,8 +153,9 @@ def listen_for_interpret():
        while True:
           msg = conn.recv()
           logmesg('LOG_INFO', f'interpret recieve message  {msg}'  )
-          message_client.publish('telegraph', msg, qos )
-          server_client.publish('telegraph', msg, qos )
+          for sel in getsel():
+             message_client.publish(f'telegraph{sel}', msg, qos )
+             server_client.publish(f'telegraph{sel}', msg, qos )
          
           listener.close() 
      except Exception as err:
