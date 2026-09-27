@@ -11,7 +11,7 @@ from multiprocessing.connection import Listener
 IP = 'localhost'
 msg_topic = 'telegraph'
 
-control_topics = ['telegraph', 'speed', 'code' ] 
+control_topics = ['telegraph', 'speed', 'code' f'telegraph/{message_client_name}' ] 
 server_client = None
 message_client = None
 
