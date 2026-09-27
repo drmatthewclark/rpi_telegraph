@@ -9,7 +9,6 @@ import morse
 from multiprocessing.connection import Listener
 
 IP = 'localhost'
-#message_client_name = 'telegraph'  in config
 msg_topic = 'telegraph'
 
 control_topics = ['telegraph', 'speed', 'code' ] 
