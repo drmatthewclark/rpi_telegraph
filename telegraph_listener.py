@@ -154,7 +154,6 @@ def listen_for_interpret():
           msg = conn.recv()
           logmesg('LOG_INFO', f'interpret recieve message  {msg}'  )
           for sel in getsel():
-             message_client.publish(f'telegraph{sel}', msg, qos )
              server_client.publish(f'telegraph{sel}', msg, qos )
          
           listener.close() 
@@ -200,20 +199,23 @@ def setup():
        logmesg('LOG_INFO', f'server is {SERVER}' )
        # listen for messages to server
        server_client = mqtt.Client( protocol=mqtt.MQTTv5, client_id=f'server {SERVER} {random.random()} ')
+       print('password', uname, pword )
        server_client.user_data_set(SERVER) # store ip
        server_client.on_message = on_message
        server_client.on_connect = on_server_connect
        server_client.on_disconnect = on_disconnect
+       server_client.username_pw_set(username=uname, password=pword) # from config.py
        server_client.connect( host=SERVER, keepalive = 30 )
        server_client.loop_start()  # Start networking daemon
   
-       message_client = mqtt.Client( protocol=mqtt.MQTTv5, client_id=f'message_client_name {random.random()}')
-       message_client.user_data_set(IP) # store ip
-       message_client.on_message = on_message 
-       message_client.on_connect = on_connect
-       message_client.on_disconnect = on_disconnect
-       message_client.connect( host=IP )
-       message_client.loop_start()  # Start networking daemon
+       essage_client = mqtt.Client( protocol=mqtt.MQTTv5, client_id=f'message_client_name {random.random()}')
+       essage_client.user_data_set(IP) # store ip
+       essage_client.on_message = on_message 
+       essage_client.on_connect = on_connect
+       essage_client.on_disconnect = on_disconnect
+       essage_client.username_pw_set(username=uname, password=pword) # from config.py
+       #message_client.connect( host=IP )
+       #message_client.loop_start()  # Start networking daemon
 
        # this function should not return 
        msq.join()
