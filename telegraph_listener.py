@@ -135,7 +135,8 @@ def on_disconnect(client, userdata, rs, properties):
 
 # get selected destinations from the web page
 def getsel():
-   result = [f'/{message_client_name}']
+   #result = [f'/{message_client_name}']
+   result = []
    try:
      with open('/tmp/selected_dests', 'r') as file:
         d = file.read().split('|')
