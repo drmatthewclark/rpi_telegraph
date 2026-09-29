@@ -135,15 +135,15 @@ def on_disconnect(client, userdata, rs, properties):
 
 # get selected destinations from the web page
 def getsel():
-   #result = [f'/{message_client_name}']
-   result = []
+
+   persist_name = '/tmp/selected_dests'  # saved selected destinations
+
    try:
-     with open('/tmp/selected_dests', 'r') as file:
-        d = file.read().split('|')
-     result += d
- 
-   finally:
-     return result
+     with open(persist_name, 'r') as file:
+        return file.read().split('|')
+
+   except:
+     return  ['']
 
 
 
@@ -158,9 +158,11 @@ def listen_for_interpret():
      try: 
         while True:
            msg = conn.recv()
-           logmesg('LOG_INFO', f'interpret recieve message  {msg}'  )
-           for sel in getsel():
+           dests = getsel()
+           logmesg('LOG_INFO', f'interpret recieve message {msg}'  )
+           for sel in dests:
               server_client.publish(f'telegraph{sel}', msg, qos )
+              logmesg('LOG_INFO', f'publish {msg} to telegraph{sel}' )
          
      except Exception as err:
         logmesg('LOG_ERR', f'telegraph socket listener err {err}, closing' )
