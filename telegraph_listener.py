@@ -13,7 +13,6 @@ msg_topic = 'telegraph'
 
 control_topics = ['telegraph', 'speed', 'code',  f'telegraph/{message_client_name}' ] 
 server_client = None
-message_client = None
 
 # global message queues
 message_queue = Queue()
@@ -133,16 +132,22 @@ def on_disconnect(client, userdata, rs, properties):
     else:
         logmesg('LOG_ERR', f'on_disconnect: failed to reconnect {host}' )
 
+
+# get selected destinations from the web page
 def getsel():
+   result = [f'/{message_client_name}']
    try:
      with open('/tmp/selected_dests', 'r') as file:
         d = file.read().split('|')
-     return d
-   except:
-     return ['']
+     result += d
+ 
+   finally:
+     return result
+
+
 
 def listen_for_interpret():
-
+   # recieve the interpretation of the key presses
    address = ('127.0.5.1', 16321)
 
    while True:
@@ -150,13 +155,12 @@ def listen_for_interpret():
      listener = Listener(address)
      conn = listener.accept()
      try: 
-       while True:
-          msg = conn.recv()
-          logmesg('LOG_INFO', f'interpret recieve message  {msg}'  )
-          for sel in getsel():
-             server_client.publish(f'telegraph{sel}', msg, qos )
+        while True:
+           msg = conn.recv()
+           logmesg('LOG_INFO', f'interpret recieve message  {msg}'  )
+           for sel in getsel():
+              server_client.publish(f'telegraph{sel}', msg, qos )
          
-          listener.close() 
      except Exception as err:
         logmesg('LOG_ERR', f'telegraph socket listener err {err}, closing' )
         listener.close()
@@ -186,7 +190,6 @@ def listen_for_key():
      
 def setup():
        global server_client
-       global message_client
 
        morse.setup()
        logmesg('LOG_INFO', 'telegraph listener starting')
@@ -207,15 +210,6 @@ def setup():
        server_client.username_pw_set(username=uname, password=pword) # from config.py
        server_client.connect( host=SERVER, keepalive = 30 )
        server_client.loop_start()  # Start networking daemon
-  
-       essage_client = mqtt.Client( protocol=mqtt.MQTTv5, client_id=f'message_client_name {random.random()}')
-       essage_client.user_data_set(IP) # store ip
-       essage_client.on_message = on_message 
-       essage_client.on_connect = on_connect
-       essage_client.on_disconnect = on_disconnect
-       essage_client.username_pw_set(username=uname, password=pword) # from config.py
-       #message_client.connect( host=IP )
-       #message_client.loop_start()  # Start networking daemon
 
        # this function should not return 
        msq.join()
