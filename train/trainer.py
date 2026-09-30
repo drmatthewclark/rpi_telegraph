@@ -5,26 +5,36 @@
 # when they are corect
 #
 #
-import paho.mqtt.client as mqtt
 import time as time
 import random
 import sys
 import pickle
 import copy
+from multiprocessing.connection import Client
 
-qos = 0
 historyfile = 'errors.pickle'
 max_delay = 10
-topic = 'telegraph'
-host = 'localhost'
 weights = {}
+intr_address = ('127.0.5.1', 16323)
+intr_conn = Client(intr_address)
 
-gap = 60
+
+# send interpretation of key stroke
+def sendinterpret( msg ):
+                
+   global intr_conn
+
+   try:
+       intr_conn.send(msg)
+   except Exception as err: 
+       intr_conn = Client(intr_address)
+       intr_conn.send(msg)
+       print('err', err) 
+      
 
 def send(message):
-        client = mqtt.Client(protocol=mqtt.MQTTv5, client_id='trainer')
-        res = client.connect(host)
-        ecode, count  = client.publish(topic, message.encode('utf8'), qos)
+    
+        sendinterpret( message )
 
 def readwords(files):
         w = readhist()
@@ -59,8 +69,7 @@ def readhist():
 
 
 def pickword(weights):
-        w = [ w*w for w in weights.values() ]
-        return random.choices(list(weights.keys()), weights=w, k=1)[0]
+        return random.choices(list(weights.keys()), weights=weights, k=1)[0]
 
 def analyze(weights):
    sort = dict(sorted(weights.items(), key=lambda item: item[1]))
@@ -70,7 +79,7 @@ def analyze(weights):
 
 
 def reweight(new_delay, old_delay):
-   delay = old_delay - (old_delay - new_delay)/2   #exponential decay
+   delay = old_delay - (old_delay - new_delay)/3   #exponential decay
    return delay
 
 def train(files):
@@ -83,7 +92,7 @@ def train(files):
                 count += 1
                 nextword = pickword(weights)
                 send(nextword)
-                start = time.perf_counter()
+                start = time.perf_counter() # after the send
                 user = input('\nword: ').strip()   # wait for input
 
                 if user == '@' or user.lower() == 'stop' :     #end
@@ -99,8 +108,8 @@ def train(files):
                         send(nextword) 
                         user = input('word: ')
 
-
-                new_delay = min(max_delay, time.perf_counter() - start ) # max in case 
+                time_taken = time.perf_counter() - start
+                new_delay = min(max_delay, time_taken ) # max in case 
                 old_delay = weights[nextword]
                 delay = reweight(new_delay, old_delay)
 
