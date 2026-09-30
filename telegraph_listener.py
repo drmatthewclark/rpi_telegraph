@@ -189,6 +189,24 @@ def listen_for_key():
     
    logmesg('LOG_INFO', 'telegraph socket listener ending')
      
+def listen_for_trainer():
+
+   address = ('127.0.5.1', 16323)
+
+   while True:
+     logmesg('LOG_INFO', f'telegraph socket listener starting' )
+     listener = Listener(address)
+     conn = listener.accept()
+     try: 
+       while True:
+          msg = conn.recv()
+          morse.message( msg )
+       
+     except Exception as err:
+        logmesg('LOG_ERR', f'telegraph socket listener err {err}, closing' )
+        listener.close()
+    
+   logmesg('LOG_INFO', 'telegraph socket listener ending')
      
 def setup():
        global server_client
@@ -199,6 +217,8 @@ def setup():
 
        lis  = daemonize( listen_for_key, None  ) 
        intr = daemonize( listen_for_interpret, None  ) 
+       tr   = daemonize( listen_for_trainer, None )
+
        msq =  daemonize(process_messages, (message_queue,) )
 
        logmesg('LOG_INFO', f'server is {SERVER}' )
