@@ -43,7 +43,7 @@ def readwords(files):
                 for word in file:
                    word = word.strip()
                    if word in w:
-                       weights[word] = min(max_delay, w[word] )
+                       weights[word] = min(max_delay, float(w[word]) )
                    else:
                        print(f'{word} not in weights' )
                        weights[word.strip()] = max_delay
@@ -69,7 +69,10 @@ def readhist():
 
 
 def pickword(weights):
+      try:
         return random.choices(list(weights.keys()), weights=weights, k=1)[0]
+      except:
+        return random.choices(list(weights.keys()), k=1)[0]
 
 def analyze(weights):
    sort = dict(sorted(weights.items(), key=lambda item: item[1]))
