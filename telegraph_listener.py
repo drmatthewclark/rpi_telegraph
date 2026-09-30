@@ -8,7 +8,6 @@ from config import *
 import morse
 from multiprocessing.connection import Listener
 
-IP = 'localhost'
 msg_topic = 'telegraph'
 
 control_topics = ['telegraph', 'speed', 'code',  f'telegraph/{message_client_name}' ] 
@@ -205,7 +204,6 @@ def setup():
        logmesg('LOG_INFO', f'server is {SERVER}' )
        # listen for messages to server
        server_client = mqtt.Client( protocol=mqtt.MQTTv5, client_id=f'server {SERVER} {random.random()} ')
-       print('password', uname, pword )
        server_client.user_data_set(SERVER) # store ip
        server_client.on_message = on_message
        server_client.on_connect = on_server_connect
