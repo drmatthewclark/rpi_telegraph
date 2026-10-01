@@ -2,6 +2,7 @@
 
 import paho.mqtt.client as mqtt
 from queue import Queue
+import time
 from threading import Thread
 import random
 from config import *
@@ -121,10 +122,10 @@ def on_disconnect(client, userdata, rs, properties):
     """
     called when the server disconnects
     """
-    host = client._host
     logmesg('LOG_ERR', f'on_disconnect: {client} {rs} {host}  disconnected')
 
-    ret = client.connect( host=host )
+    while client.reconnect() != 0:
+        time.sleep(2)
 
     if ret == 0:
         logmesg('LOG_INFO', f'on_disconnect: reconnected {host}')
