@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+
 import paho.mqtt.client as mqtt
 from queue import Queue
 import time
@@ -122,15 +123,17 @@ def on_disconnect(client, userdata, rs, properties):
     """
     called when the server disconnects
     """
-    logmesg('LOG_ERR', f'on_disconnect: {client} {rs} {host}  disconnected')
+    id = client._client_id.decode()
+    logmesg('LOG_ERR', f'on_disconnect: {id} {rs} {properties}  disconnected')
+    while True:
+       try: 
+         if client.reconnect() == 0:
+           break
+       except:
+        time.sleep(5)
+        logmesg('LOG_ERR', f'on_disconnect: {id} failed to reconnect' )
 
-    while client.reconnect() != 0:
-        time.sleep(2)
-
-    if ret == 0:
-        logmesg('LOG_INFO', f'on_disconnect: reconnected {host}')
-    else:
-        logmesg('LOG_ERR', f'on_disconnect: failed to reconnect {host}' )
+    logmesg('LOG_INFO', f'on_disconnect: reconnected ')
 
 
 # get selected destinations from the web page
@@ -230,7 +233,16 @@ def setup():
        server_client.on_connect = on_server_connect
        server_client.on_disconnect = on_disconnect
        server_client.username_pw_set(username=uname, password=pword) # from config.py
-       server_client.connect( host=SERVER, keepalive = 30 )
+       while True:
+            try:
+                retcode = server_client.connect( host=SERVER, keepalive = 30 )
+                if retcode == 0: break
+            except:
+                time.sleep(5)
+                logmesg('LOG_ERR', f'retrying connection  to {SERVER}' )
+
+ 
+       logmesg('LOG_INFO', f'connected to {SERVER}' )
        server_client.loop_start()  # Start networking daemon
 
        # this function should not return 
