@@ -1,11 +1,13 @@
 #!/usr/bin/python3
+# key listener listens to rasberry pi gpio pins to detect keystrokes 
+# and decodes them into the nearest code letters
+#
 
 import RPi.GPIO as GPIO
 import time as time
 from threading import Thread
 from config import *
 import morse
-from threading import Event
 from multiprocessing.connection import Client as send_client
 import traceback
 
@@ -14,21 +16,11 @@ signals = []    # stores tuples of (time, event(up/down) )  to evaluate
 UP = GPIO.RISING
 DOWN = GPIO.FALLING
 
-# reverse if signal is grounding pin
+# reverse if signal is grounding pin instead of putting +5v 
 if gpioInputGnd:
     UP = GPIO.FALLING
     DOWN = GPIO.RISING
 
-
-# diagnostic
-def showsignals():
-    result = ''
-    start_time = signals[0][0]
-    for (time, event)  in signals:
-        time  -= start_time
-        result += f'{time:0.3f}  {event}\n'
-
-    return result
 
 
 def interpret(interval):
@@ -176,11 +168,13 @@ def key_signal(arg):
 
 def gpio_listener():
     """ 
-    main listening loop for key presses
+    main listening loop for key presses. expects to be daemonized or will block 
     """
     setup_gpio() 
-    GPIO.add_event_detect(gpioInputPin, GPIO.BOTH, key_signal, 1 )
-    Event().wait()  # wait here forever
+    GPIO.add_event_detect(gpioInputPin, GPIO.BOTH, key_signal, 2 )
+
+    while True:
+       time.sleep(86400)
 
 
 def daemonize( func, args=None ):
@@ -195,7 +189,9 @@ def daemonize( func, args=None ):
 
 
 
-# send interpretation of key stroke
+# send interpretation of key stroke using a message client
+# to the telegraph listener
+
 def sendinterpret( msg ):
 
    global intr_conn
@@ -209,6 +205,7 @@ def sendinterpret( msg ):
 
 # send telegraph key stroke
 def sendmsg( msg ):
+
    global key_conn
 
    try:    
@@ -220,9 +217,11 @@ def sendmsg( msg ):
 
 if __name__ == '__main__':
 
+   # local addresses to communicate to sounder
    key_address =  ('127.0.5.1', 16320)
    intr_address = ('127.0.5.1', 16321)
-   key_conn = None
+
+   key_conn =  send_client(key_address)
    intr_conn = send_client(intr_address)
 
    logmesg('LOG_INFO', 'key listener starting' )
