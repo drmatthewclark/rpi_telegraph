@@ -167,8 +167,8 @@ def listen_for_interpret():
               server_client.publish(f'telegraph{sel}', msg, qos )
               logmesg('LOG_INFO', f'publish {msg} to telegraph{sel}' )
          
-     except Exception as err:
-        logmesg('LOG_ERR', f'telegraph socket listener err {err}, closing' )
+     except Exception as erro: 
+        # this happens because the key closes the connection after sending and re-opens
         listener.close()
     
    logmesg('LOG_INFO', 'telegraph interpreter socket listener ending')
@@ -204,10 +204,11 @@ def listen_for_trainer():
      try: 
        while True:
           msg = conn.recv()
+          logmesg('LOG_INFO', f'telegraph socket recieved {msg}' )
           morse.message( msg )
        
      except Exception as err:
-        logmesg('LOG_ERR', f'telegraph socket listener err {err}, closing' )
+        logmesg('LOG_ERR', f'telegraph socket listener >{err}<, closing' )
         listener.close()
     
    logmesg('LOG_INFO', 'telegraph socket listener ending')

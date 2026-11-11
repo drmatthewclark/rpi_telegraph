@@ -194,13 +194,12 @@ def daemonize( func, args=None ):
 
 def sendinterpret( msg ):
 
-   global intr_conn
-
-   try:    
-       intr_conn.send(msg)
-   except:
-       intr_conn = send_client(intr_address)
-       intr_conn.send(msg)
+   with send_client(intr_address) as conn:
+       logmesg('LOG_INFO', f'sendinterpret: send {msg} {conn} {key_address}' )
+       try:    
+          conn.send(msg)
+       except Exception as err:
+          logmesg('LOG_ERR', f'sendinterpret: error {err}' )
 
 
 # send telegraph key stroke
@@ -222,7 +221,7 @@ if __name__ == '__main__':
    intr_address = ('127.0.5.1', 16321)
 
    key_conn =  send_client(key_address)
-   intr_conn = send_client(intr_address)
+   #intr_conn = send_client(intr_address)
 
    logmesg('LOG_INFO', 'key listener starting' )
    setup_gpio()
