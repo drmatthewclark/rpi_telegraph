@@ -174,7 +174,7 @@ def gpio_listener():
     GPIO.add_event_detect(gpioInputPin, GPIO.BOTH, key_signal, 2 )
 
     while True:
-       time.sleep(86400)
+       time.sleep(86460)
 
 
 def daemonize( func, args=None ):
@@ -194,12 +194,17 @@ def daemonize( func, args=None ):
 
 def sendinterpret( msg ):
 
-   with send_client(intr_address) as conn:
-       logmesg('LOG_INFO', f'sendinterpret: send {msg} {conn} {key_address}' )
-       try:    
-          conn.send(msg)
-       except Exception as err:
-          logmesg('LOG_ERR', f'sendinterpret: error {err}' )
+   global intr_conn
+
+   if intr_conn is None or intr_conn.closed == True or intr_conn.writable == False:
+         intr_conn =  send_client(intr_address)
+         logmesg('LOG_INFO', f'sendinterpret: reopening {intr_address}' )
+
+   logmesg('LOG_INFO', f'sendinterpret: send {msg}' )
+   try:    
+      intr_conn.send(msg)
+   except Exception as err:
+      logmesg('LOG_ERR', f'sendinterpret: error {err}' )
 
 
 # send telegraph key stroke
@@ -207,12 +212,15 @@ def sendmsg( msg ):
 
    global key_conn
 
+   if key_conn is None or key_conn.closed == True or key_conn.writable == False:
+         key_conn =  send_client(key_address)
+         logmesg('LOG_INFO', f'sendmsg: reopening {key_address}' )
+       
    try:    
-       key_conn.send(msg)
-   except:
-       key_conn = send_client(key_address)
-       key_conn.send(msg)
-   
+      key_conn.send(msg)
+   except Exception as err:
+      logmesg('LOG_ERR', f'sendmsg error: {err}' )
+
 
 if __name__ == '__main__':
 
@@ -221,7 +229,7 @@ if __name__ == '__main__':
    intr_address = ('127.0.5.1', 16321)
 
    key_conn =  send_client(key_address)
-   #intr_conn = send_client(intr_address)
+   intr_conn = send_client(intr_address)
 
    logmesg('LOG_INFO', 'key listener starting' )
    setup_gpio()
