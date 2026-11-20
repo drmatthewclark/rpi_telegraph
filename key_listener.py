@@ -65,7 +65,7 @@ def interpret(interval):
         else:
           guess = p
 
-        err = 100.*(abs(d)-correct)/correct
+        err = min( 100, 100.*(abs(d)-correct)/correct )
         ideal_length += correct
         actual_length += abs(d)   # length
         keymsg = '% 5d    %5d %15s err: % 6.0f%%' % (int(1000*d), int(1000*correct), guess, err  )
@@ -89,11 +89,14 @@ def interpret(interval):
     totalerr = (100.0*actual_length/ideal_length) - 100.0
     char = morse.morse2char(morseChar)
     result =   "%6s\t%s\t%4.0f" % (morseChar, char, totalerr)
-    logmesg('LOG_INFO', f' interpret: {result}' )
 
     if not char is None:
        sendinterpret( char.encode('utf8') )
-       logmesg('LOG_INFO', f'send msg { char.encode("utf8") }' )
+       logmesg('LOG_INFO', f'send msg >{char}<' )
+    else:
+       logmesg('LOG_INFO', f'could not interpret, sending >?<' )
+       #send_signals()  # send the taps
+       sendinterpret( '?' ) 
 
     signals.clear()
 
@@ -165,6 +168,18 @@ def key_signal(arg):
     sendmsg( level == 1 ) 
 
 
+def send_signals():  # send the taps from signals  
+
+    for i in range( len(signals) - 1 ):
+        prev, level = signals[i]
+        sendmsg(  level )
+        now, _ = signals[i+1]
+        print(level, 'sleep', now - prev) 
+        time.sleep( now  - prev)
+
+    sendmsg( signals[-1][1]  )
+    print('-done-')
+
 
 def gpio_listener():
     """ 
@@ -174,7 +189,8 @@ def gpio_listener():
     GPIO.add_event_detect(gpioInputPin, GPIO.BOTH, key_signal, 2 )
 
     while True:
-       time.sleep(86460)
+       time.sleep(3000)
+       # could do health check here
 
 
 def daemonize( func, args=None ):
@@ -232,7 +248,7 @@ if __name__ == '__main__':
    intr_conn = send_client(intr_address)
 
    logmesg('LOG_INFO', 'key listener starting' )
-   setup_gpio()
+
    ana = daemonize( analyzer )  # figures out the letters
    gpio_listener()  # listens to local key waits here forever
    ana.join()
