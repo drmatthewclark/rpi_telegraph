@@ -23,16 +23,13 @@ if gpioInputGnd:
 
 
 
-def interpret(interval):
+def interpret():
     """ 
     interpret  the key clicks to assign to a caracter
 
     """
+    # only called if signals has > 1 entry and has even number of entries
 
-    if len(signals) < 2:
-        return
-
-    logmesg('LOG_INFO', '%6.4f interpret...' % (interval) )
     dot = morse.lengths['dotLength']
     dash = morse.lengths['dashLength']
     dotdash = []
@@ -47,7 +44,9 @@ def interpret(interval):
             elif s == 1 and ls == 0:  # key up interval
                 dotdash.append(-interval)
             else:
-                logmesg('LOG_ERR', f'interpret long gap: {interval} from {ls} to {s}')
+                logmesg('LOG_ERR', f'interpret long gap: {i} {interval} from {ls} to {s}')
+                signals.clear() 
+                return
 
     morseChar = ''
 
@@ -117,12 +116,13 @@ def analyzer():
             num_signals = len(signals)
 
             if num_signals == 0 :
+              time.sleep(criteria)
               continue
 
             interval = now - signals[-1][0]
     
-            if interval > criteria and num_signals % 2 == 0:  # >1 cause need and up and down
-                interpret(interval)
+            if interval > criteria and num_signals % 2 == 0 and num_signals > 1:  # >1 cause need and up and down
+                interpret()
 
         except Exception as err:
             logmesg('LOG_ERR', f'analyzer error {err} \n{traceback.format_exc()}  ' )
