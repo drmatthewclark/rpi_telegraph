@@ -189,7 +189,7 @@ def gpio_listener():
     GPIO.add_event_detect(gpioInputPin, GPIO.BOTH, key_signal, 2 )
 
     while True:
-       time.sleep(60)
+       time.sleep(7200)
        logmesg('LOG_INFO', f'listener heartbeat {time.monotonic()} signals: {signals}')
        # could do health check here
 
