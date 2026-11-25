@@ -130,7 +130,7 @@ def on_disconnect(client, userdata, rs, properties):
          if client.reconnect() == 0:
            break
        except:
-        time.sleep(5)
+        time.sleep(10)
         logmesg('LOG_ERR', f'on_disconnect: {id} failed to reconnect' )
 
     logmesg('LOG_INFO', f'on_disconnect: reconnected ')
@@ -238,12 +238,20 @@ def setup():
                 retcode = server_client.connect( host=SERVER, keepalive = 30 )
                 if retcode == 0: break
             except:
-                time.sleep(5)
+                time.sleep(10)
                 logmesg('LOG_ERR', f'retrying connection  to {SERVER}' )
 
  
        logmesg('LOG_INFO', f'connected to {SERVER}' )
        server_client.loop_start()  # Start networking daemon
+
+       # listen locally too
+       local_client = mqtt.Client( protocol=mqtt.MQTTv5, client_id=f'{message_client_name}_local')
+       local_client.on_message = on_message
+       local_client.on_connect = on_server_connect
+       local_client.on_disconnect = on_disconnect
+       local_client.connect(host='localhost', keepalive = 30 )
+       local_client.loop_start()
 
        # this function should not return 
        msq.join()

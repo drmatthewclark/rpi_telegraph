@@ -95,7 +95,7 @@ def train(files):
                 count += 1
                 nextword = pickword(weights)
                 send(nextword)
-                start = time.perf_counter() # after the send
+                start = time.monotonic() # after the send
                 user = input('\nword: ').strip()   # wait for input
 
                 if user == '@' or user.lower() == 'stop' :     #end

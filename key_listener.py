@@ -112,7 +112,7 @@ def analyzer():
     # loop awaiting signals
     while True:
         try:
-            now = time.perf_counter()
+            now = time.monotonic()
             num_signals = len(signals)
 
             if num_signals == 0 :
@@ -158,7 +158,7 @@ def setup_gpio():
 
 def key_signal(arg):
     # called on key press or release 
-    now =  time.perf_counter()
+    now =  time.monotonic()
     level = int( GPIO.input(gpioInputPin) )
 
     if gpioInputGnd:   # if grounding gpio pin for signal
@@ -189,7 +189,8 @@ def gpio_listener():
     GPIO.add_event_detect(gpioInputPin, GPIO.BOTH, key_signal, 2 )
 
     while True:
-       time.sleep(3000)
+       time.sleep(60)
+       logmesg('LOG_INFO', f'listener heartbeat {time.monotonic()} signals: {signals}')
        # could do health check here
 
 
